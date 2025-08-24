@@ -60,7 +60,7 @@ class RelayDiscoveryStats:
 class NostrRelayDiscovery:
     """Nostr relay discovery tool using breadth-first search through follow lists"""
     
-    def __init__(self, initial_relay: str, max_depth: int = 3, connection_timeout: int = 10, output_file: str = "relay_discovery_results.json", save_point: int = SAVE_POINT):
+    def __init__(self, initial_relay: str, max_depth: int = 3, connection_timeout: int = 5, output_file: str = "relay_discovery_results.json", save_point: int = SAVE_POINT):
         self.initial_relay = initial_relay
         self.max_depth = max_depth
         self.connection_timeout = connection_timeout
@@ -441,7 +441,7 @@ async def main():
     parser.add_argument(
         "--timeout",
         type=int,
-        default=10,
+        default=5,
         help="Connection timeout in seconds (default: 10)"
     )
     parser.add_argument(
