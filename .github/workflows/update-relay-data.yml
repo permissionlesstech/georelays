@@ -13,6 +13,9 @@ on:
       - 'filter_bitchat_relays.sh'
       - 'relays_geo_lookup.sh'
 
+permissions:
+  contents: write
+
 jobs:
   update-relay-data:
     runs-on: ubuntu-latest
