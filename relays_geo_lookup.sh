@@ -7,9 +7,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 output_file="$1"
-if [ ! -f "$output_file" ] || [ ! -s "$output_file" ]; then
-    echo "Relay URL,Latitude,Longitude" > "$output_file"
-fi
+echo "Relay URL,Latitude,Longitude" > "$output_file"
 
 while IFS= read -r url; do
 

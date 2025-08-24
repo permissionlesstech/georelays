@@ -13,6 +13,9 @@ on:
       - 'filter_bitchat_relays.sh'
       - 'relays_geo_lookup.sh'
 
+permissions:
+  contents: write
+
 jobs:
   update-relay-data:
     runs-on: ubuntu-latest
@@ -24,7 +27,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     
@@ -33,8 +36,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
-    - name: Install jq
-      run: sudo apt-get update && sudo apt-get install -y jq
+    - name: Install required dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y jq curl dnsutils
+        wget https://github.com/fiatjaf/nak/releases/download/v0.15.3/nak-v0.15.3-linux-amd64
+        sudo mv nak-v0.15.3-linux-amd64 /usr/local/bin/nak
+        sudo chmod +x /usr/local/bin/nak
+        echo "Verifying nak installation:"
+        nak --version
+        which nak
     
     - name: Make scripts executable
       run: |
@@ -66,7 +76,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Upload relay data as artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: relay-data-${{ github.run_number }}
         path: |

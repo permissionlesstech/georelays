@@ -106,7 +106,7 @@ class NostrRelayDiscovery:
     
     def normalize_relay_url(self, url: str) -> str:
         """Normalize relay URL (remove trailing slashes, etc.)"""
-        url = url.strip()
+        url = url.strip().lower()
         match = re.match(r'^(wss://[^/]+)/?$', url)
 
         if match:
@@ -128,7 +128,8 @@ class NostrRelayDiscovery:
             
             async with websockets.connect(
                 relay_url,
-                timeout=self.connection_timeout,
+                open_timeout=self.connection_timeout,
+                close_timeout=5,
                 max_size=2**20,  # 1MB max message size
                 ping_interval=None  # Disable ping
             ) as websocket:
@@ -196,8 +197,8 @@ class NostrRelayDiscovery:
             logger.debug(f"Failed to connect to {relay_url}: {e}")
             return False
     
-    async def fetch_follow_lists(self, relay_url: str) -> List[Dict]:
-        """Fetch kind 3 events (follow lists) from a relay"""
+    async def fetch_events(self, relay_url: str) -> List[Dict]:
+        """Fetch kind 3 events (follow lists) or kind 10002 (NIP-66) from a relay"""
         follow_events = []
         
         try:
@@ -205,12 +206,13 @@ class NostrRelayDiscovery:
             
             async with websockets.connect(
                 relay_url,
-                timeout=self.connection_timeout,
+                open_timeout=self.connection_timeout,
+                close_timeout=5,
                 max_size=2**20
             ) as websocket:
-                # Request follow lists (kind 3 events)
+                
                 filter_req = {
-                    "kinds": [3],
+                    "kinds": [3, 10002],
                     "limit": 300,
                 }
                 
@@ -222,7 +224,7 @@ class NostrRelayDiscovery:
                 
                 # Collect events until EOSE
                 start_time = time.time()
-                timeout_duration = 30.0  # 30 second timeout
+                timeout_duration = 30.0
                 
                 while time.time() - start_time < timeout_duration:
                     try:
@@ -231,7 +233,7 @@ class NostrRelayDiscovery:
                         
                         if data[0] == "EVENT" and data[1] == subscription_id:
                             event = data[2]
-                            if event.get("kind") == 3:
+                            if event.get("kind") == 3 or event.get("kind") == 10002:
                                 follow_events.append(event)
                                 logger.debug(f"Collected follow event from {event.get('pubkey', 'unknown')[:8]}...")
                         
@@ -254,6 +256,7 @@ class NostrRelayDiscovery:
         
         logger.info(f"Collected {len(follow_events)} follow events from {relay_url}")
         return follow_events
+
     
     def extract_relays_from_events(self, events: List[Dict]) -> Set[str]:
         """Extract relay URLs from follow list events"""
@@ -305,35 +308,14 @@ class NostrRelayDiscovery:
             logger.info(f"Found {len(existing_relays)} existing functioning relays to verify")
             
             if not existing_relays:
-                logger.info("No existing functioning relays found, starting fresh")
+                logger.info("No existing relays found, starting fresh")
                 self.to_visit.append((self.initial_relay, 0))
                 self.to_visit_set.add(self.initial_relay)
                 return False
-            
-            # Verify existing relays still work
-            verified_relays = await self.verify_existing_relays(existing_relays)
-            
-            if verified_relays:
-                logger.info(f"Successfully verified {len(verified_relays)} existing relays")
-                # Use verified relays as starting points for discovery
-                for relay in verified_relays:
-                    self.to_visit.append((relay, 0))
-                    self.to_visit_set.add(relay)
-                    self.functioning_relays.add(relay)
-                    self.stats.functioning_relays += 1
-                
-                # Also preserve other statistics if available
-                if 'statistics' in data:
-                    old_stats = data['statistics']
-                    self.stats.total_relays_found = old_stats.get('total_relays_found', len(verified_relays))
-                    self.stats.events_processed = old_stats.get('events_processed', 0)
-                
-                return True
             else:
-                logger.warning("No existing relays could be verified, starting fresh")
-                self.to_visit.append((self.initial_relay, 0))
-                self.to_visit_set.add(self.initial_relay)
-                return False
+                logger.info("Existing relays found, building on the previous results")
+                self.to_visit.extend([(existing_relay, 0) for existing_relay in existing_relays])
+                self.to_visit_set.update(existing_relays)
                 
         except Exception as e:
             logger.error(f"Error loading existing results: {e}")
@@ -341,46 +323,6 @@ class NostrRelayDiscovery:
             self.to_visit.append((self.initial_relay, 0))
             self.to_visit_set.add(self.initial_relay)
             return False
-    
-    async def verify_existing_relays(self, existing_relays: List[str]) -> List[str]:
-        """Verify that existing relays still work and filter out non-working ones"""
-        verified_relays = []
-        
-        logger.info(f"Verifying {len(existing_relays)} existing relays...")
-        
-        # Test relays in batches to avoid overwhelming connections
-        batch_size = 10
-        for i in range(0, len(existing_relays), batch_size):
-            batch = existing_relays[i:i + batch_size]
-            batch_tasks = []
-            
-            for relay in batch:
-                if self.is_valid_relay_url(relay):
-                    batch_tasks.append(self.test_relay_connection(relay))
-                else:
-                    logger.warning(f"Invalid relay URL in existing results: {relay}")
-                    self.stats.existing_relays_failed += 1
-            
-            if batch_tasks:
-                # Run batch tests concurrently
-                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
-                
-                for j, result in enumerate(batch_results):
-                    relay = batch[j]
-                    if isinstance(result, bool) and result:
-                        verified_relays.append(relay)
-                        self.stats.existing_relays_verified += 1
-                        logger.info(f"✓ Verified existing relay: {relay}")
-                    else:
-                        self.stats.existing_relays_failed += 1
-                        logger.warning(f"✗ Existing relay failed verification: {relay}")
-            
-            # Small delay between batches to be nice to the relays
-            if i + batch_size < len(existing_relays):
-                await asyncio.sleep(0.5)
-        
-        logger.info(f"Verification complete: {len(verified_relays)}/{len(existing_relays)} relays still functioning")
-        return verified_relays
     
     async def discover_relays(self) -> Set[str]:
         """Main discovery method using breadth-first search"""
@@ -416,11 +358,11 @@ class NostrRelayDiscovery:
                 if depth < self.max_depth:
                     try:
                         # Fetch follow lists from this relay
-                        follow_events = await self.fetch_follow_lists(current_relay)
+                        events = await self.fetch_events(current_relay)
                         
-                        if follow_events:
+                        if events:
                             # Extract new relays from follow lists
-                            new_relays = self.extract_relays_from_events(follow_events)
+                            new_relays = self.extract_relays_from_events(events)
                             
                             # Add new relays to visit queue for next depth level
                             for relay_url in new_relays:
