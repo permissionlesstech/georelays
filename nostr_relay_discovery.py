@@ -313,7 +313,7 @@ class NostrRelayDiscovery:
                 return False
             else:
                 logger.info("Existing relays found, building on the previous results")
-                self.to_visit.append((existing_relays, 0))
+                self.to_visit.extend([(existing_relay, 0) for existing_relay in existing_relays])
                 self.to_visit_set.update(existing_relays)
                 
         except Exception as e:
