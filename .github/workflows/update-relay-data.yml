@@ -46,7 +46,7 @@ jobs:
     
     - name: Update relay discovery results
       run: |
-        python3 nostr_relay_discovery.py wss://relay.damus.io --output relay_discovery_results.json
+        python3 nostr_relay_discovery.py wss://relay.damus.io --output relay_discovery_results.json --batch-size 20
     
     - name: Update relay geolocation data
       run: |

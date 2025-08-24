@@ -60,12 +60,13 @@ class RelayDiscoveryStats:
 class NostrRelayDiscovery:
     """Nostr relay discovery tool using breadth-first search through follow lists"""
     
-    def __init__(self, initial_relay: str, max_depth: int = 3, connection_timeout: int = 5, output_file: str = "relay_discovery_results.json", save_point: int = SAVE_POINT):
+    def __init__(self, initial_relay: str, max_depth: int = 3, connection_timeout: int = 5, output_file: str = "relay_discovery_results.json", save_point: int = SAVE_POINT, batch_size: int = 10):
         self.initial_relay = initial_relay
         self.max_depth = max_depth
         self.connection_timeout = connection_timeout
         self.output_file = output_file
         self.save_point = save_point
+        self.batch_size = batch_size
         
         # Discovery state
         self.to_visit: deque = deque()  # (relay_url, depth) - will be populated by load_existing_results
@@ -197,6 +198,38 @@ class NostrRelayDiscovery:
             logger.debug(f"Failed to connect to {relay_url}: {e}")
             return False
     
+    async def test_relays_connections(self, relay_urls: List[str]) -> Dict[str, bool]:
+        """Test multiple relays concurrently and return a dict of relay_url -> functioning status"""
+        if not relay_urls:
+            return {}
+        
+        logger.info(f"Testing {len(relay_urls)} relays concurrently")
+        
+        # Create tasks for concurrent testing
+        tasks = []
+        for relay_url in relay_urls:
+            task = asyncio.create_task(self.test_relay_connection(relay_url))
+            tasks.append((relay_url, task))
+        
+        # Wait for all tasks to complete
+        results = {}
+        for relay_url, task in tasks:
+            try:
+                is_functioning = await task
+                results[relay_url] = is_functioning
+                if is_functioning:
+                    logger.info(f"✓ Relay {relay_url} is functioning")
+                else:
+                    logger.warning(f"✗ Relay {relay_url} is not functioning")
+            except Exception as e:
+                logger.error(f"Error testing relay {relay_url}: {e}")
+                results[relay_url] = False
+        
+        functioning_count = sum(1 for status in results.values() if status)
+        logger.info(f"Batch test completed: {functioning_count}/{len(relay_urls)} relays functioning")
+        
+        return results
+    
     async def fetch_events(self, relay_url: str) -> List[Dict]:
         """Fetch kind 3 events (follow lists) or kind 10002 (NIP-66) from a relay"""
         follow_events = []
@@ -256,6 +289,35 @@ class NostrRelayDiscovery:
         
         logger.info(f"Collected {len(follow_events)} follow events from {relay_url}")
         return follow_events
+
+    async def fetch_events_from_relays(self, relay_urls: List[str]) -> Dict[str, List[Dict]]:
+        """Fetch events from multiple relays concurrently and return a dict of relay_url -> events"""
+        if not relay_urls:
+            return {}
+        
+        logger.info(f"Fetching events from {len(relay_urls)} relays concurrently")
+        
+        # Create tasks for concurrent event fetching
+        tasks = []
+        for relay_url in relay_urls:
+            task = asyncio.create_task(self.fetch_events(relay_url))
+            tasks.append((relay_url, task))
+        
+        # Wait for all tasks to complete
+        results = {}
+        for relay_url, task in tasks:
+            try:
+                events = await task
+                results[relay_url] = events
+                logger.info(f"✓ Fetched {len(events)} events from {relay_url}")
+            except Exception as e:
+                logger.error(f"Error fetching events from relay {relay_url}: {e}")
+                results[relay_url] = []
+        
+        total_events = sum(len(events) for events in results.values())
+        logger.info(f"Batch fetch completed: {total_events} total events from {len(relay_urls)} relays")
+        
+        return results
 
     
     def extract_relays_from_events(self, events: List[Dict]) -> Set[str]:
@@ -325,60 +387,79 @@ class NostrRelayDiscovery:
             return False
     
     async def discover_relays(self) -> Set[str]:
-        """Main discovery method using breadth-first search"""
+        """Main discovery method using breadth-first search with concurrent processing"""
         # First, try to load existing results and verify them
         logger.info("Checking for existing results to build upon...")
         await self.load_existing_results()
         
-        logger.info(f"Starting relay discovery from existing verified relays or {self.initial_relay}")
+        logger.info(f"Starting relay discovery with batch size {self.batch_size}")
         logger.info(f"Maximum depth: {self.max_depth}")
         
         while self.to_visit:
-            current_relay, depth = self.to_visit.popleft()
-            self.to_visit_set.remove(current_relay)
+            # Collect a batch of relays to process
+            current_batch = []
+            batch_depth_map = {}
             
-            # Skip if already visited
-            if current_relay in self.visited_relays:
-                continue
-            
-            # Skip if depth exceeds maximum
-            if depth > self.max_depth:
-                logger.info(f"Reached maximum depth {self.max_depth}, stopping exploration")
-                continue
-            
-            logger.info(f"Processing relay {current_relay} at depth {depth}")
-            self.visited_relays.add(current_relay)
-            
-            if await self.test_relay_connection(current_relay):
-                logger.info(f"✓ Relay {current_relay} is functioning")
-                self.functioning_relays.add(current_relay)
-                self.stats.functioning_relays += 1
+            # Get up to batch_size relays from the queue
+            for _ in range(min(self.batch_size, len(self.to_visit))):
+                if not self.to_visit:
+                    break
+                    
+                current_relay, depth = self.to_visit.popleft()
+                self.to_visit_set.remove(current_relay)
                 
-                # Only fetch follow lists if we haven't reached max depth
-                if depth < self.max_depth:
-                    try:
-                        # Fetch follow lists from this relay
-                        events = await self.fetch_events(current_relay)
-                        
-                        if events:
-                            # Extract new relays from follow lists
-                            new_relays = self.extract_relays_from_events(events)
-                            
-                            # Add new relays to visit queue for next depth level
-                            for relay_url in new_relays:
-                                if relay_url not in self.visited_relays and relay_url not in self.to_visit_set:
-                                    self.to_visit.append((relay_url, depth + 1))
-                                    self.to_visit_set.add(relay_url)
-                                    self.stats.total_relays_found += 1
-                                    logger.debug(f"Added {relay_url} to visit queue at depth {depth + 1}")
-                        
-                    except Exception as e:
-                        logger.error(f"Error processing relay {current_relay}: {e}")
+                # Skip if already visited
+                if current_relay in self.visited_relays:
+                    continue
+                    
+                # Skip if depth exceeds maximum
+                if depth > self.max_depth:
+                    logger.info(f"Reached maximum depth {self.max_depth}, stopping exploration")
+                    continue
                 
-            else:
-                logger.warning(f"✗ Relay {current_relay} is not functioning")
+                current_batch.append(current_relay)
+                batch_depth_map[current_relay] = depth
+                self.visited_relays.add(current_relay)
             
-            # Save progress periodically every save_point relays processed
+            if not current_batch:
+                break
+            
+            logger.info(f"Processing batch of {len(current_batch)} relays")
+            
+            # Test all relays in the batch concurrently
+            test_results = await self.test_relays_connections(current_batch)
+            
+            # Collect functioning relays for event fetching
+            functioning_relays_batch = []
+            for relay_url, is_functioning in test_results.items():
+                if is_functioning:
+                    self.functioning_relays.add(relay_url)
+                    self.stats.functioning_relays += 1
+                    
+                    # Only add to event fetching if we haven't reached max depth
+                    depth = batch_depth_map[relay_url]
+                    if depth < self.max_depth:
+                        functioning_relays_batch.append(relay_url)
+            
+            # Fetch events from all functioning relays concurrently
+            if functioning_relays_batch:
+                events_results = await self.fetch_events_from_relays(functioning_relays_batch)
+                
+                # Process events and extract new relays
+                for relay_url, events in events_results.items():
+                    if events:
+                        depth = batch_depth_map[relay_url]
+                        new_relays = self.extract_relays_from_events(events)
+                        
+                        # Add new relays to visit queue for next depth level
+                        for new_relay_url in new_relays:
+                            if new_relay_url not in self.visited_relays and new_relay_url not in self.to_visit_set:
+                                self.to_visit.append((new_relay_url, depth + 1))
+                                self.to_visit_set.add(new_relay_url)
+                                self.stats.total_relays_found += 1
+                                logger.debug(f"Added {new_relay_url} to visit queue at depth {depth + 1}")
+            
+            # Save progress periodically
             if len(self.visited_relays) % self.save_point == 0:
                 logger.info(f"Progress checkpoint: Saving results after processing {len(self.visited_relays)} relays")
                 self.save_results()
@@ -400,7 +481,8 @@ class NostrRelayDiscovery:
                 "initial_relay": self.initial_relay,
                 "max_depth": self.max_depth,
                 "connection_timeout": self.connection_timeout,
-                "save_point": self.save_point
+                "save_point": self.save_point,
+                "batch_size": self.batch_size
             },
             "progress_info": {
                 "relays_processed": len(self.visited_relays),
@@ -442,7 +524,7 @@ async def main():
         "--timeout",
         type=int,
         default=5,
-        help="Connection timeout in seconds (default: 10)"
+        help="Connection timeout in seconds (default: 5)"
     )
     parser.add_argument(
         "--output",
@@ -456,6 +538,12 @@ async def main():
         help=f"Save progress every N relays processed (default: {SAVE_POINT})"
     )
     parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=10,
+        help="Number of relays to process concurrently (default: 10)"
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose logging"
@@ -467,7 +555,14 @@ async def main():
         logging.getLogger().setLevel(logging.DEBUG)
     
     # Validate initial relay URL
-    discovery = NostrRelayDiscovery(args.initial_relay, args.max_depth, args.timeout, args.output, args.save_point)
+    discovery = NostrRelayDiscovery(
+        args.initial_relay, 
+        args.max_depth, 
+        args.timeout, 
+        args.output, 
+        args.save_point,
+        args.batch_size
+    )
     if not discovery.is_valid_relay_url(args.initial_relay):
         print(f"Error: Invalid relay URL: {args.initial_relay}")
         print("Relay URL should start with ws:// or wss://")
