@@ -1,1 +1,1 @@
-websockets>=11.0.0
+websockets>=12.0

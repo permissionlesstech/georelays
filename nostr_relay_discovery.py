@@ -128,7 +128,8 @@ class NostrRelayDiscovery:
             
             async with websockets.connect(
                 relay_url,
-                timeout=self.connection_timeout,
+                open_timeout=self.connection_timeout,
+                close_timeout=5,
                 max_size=2**20,  # 1MB max message size
                 ping_interval=None  # Disable ping
             ) as websocket:
@@ -205,7 +206,8 @@ class NostrRelayDiscovery:
             
             async with websockets.connect(
                 relay_url,
-                timeout=self.connection_timeout,
+                open_timeout=self.connection_timeout,
+                close_timeout=5,
                 max_size=2**20
             ) as websocket:
                 # Request follow lists (kind 3 events)
