@@ -197,8 +197,8 @@ class NostrRelayDiscovery:
             logger.debug(f"Failed to connect to {relay_url}: {e}")
             return False
     
-    async def fetch_follow_lists(self, relay_url: str) -> List[Dict]:
-        """Fetch kind 3 events (follow lists) from a relay"""
+    async def fetch_events(self, relay_url: str) -> List[Dict]:
+        """Fetch kind 3 events (follow lists) or kind 10002 (NIP-66) from a relay"""
         follow_events = []
         
         try:
@@ -210,9 +210,9 @@ class NostrRelayDiscovery:
                 close_timeout=5,
                 max_size=2**20
             ) as websocket:
-                # Request follow lists (kind 3 events)
+                
                 filter_req = {
-                    "kinds": [3],
+                    "kinds": [3, 10002],
                     "limit": 300,
                 }
                 
@@ -224,7 +224,7 @@ class NostrRelayDiscovery:
                 
                 # Collect events until EOSE
                 start_time = time.time()
-                timeout_duration = 30.0  # 30 second timeout
+                timeout_duration = 30.0
                 
                 while time.time() - start_time < timeout_duration:
                     try:
@@ -233,7 +233,7 @@ class NostrRelayDiscovery:
                         
                         if data[0] == "EVENT" and data[1] == subscription_id:
                             event = data[2]
-                            if event.get("kind") == 3:
+                            if event.get("kind") == 3 or event.get("kind") == 10002:
                                 follow_events.append(event)
                                 logger.debug(f"Collected follow event from {event.get('pubkey', 'unknown')[:8]}...")
                         
@@ -256,6 +256,7 @@ class NostrRelayDiscovery:
         
         logger.info(f"Collected {len(follow_events)} follow events from {relay_url}")
         return follow_events
+
     
     def extract_relays_from_events(self, events: List[Dict]) -> Set[str]:
         """Extract relay URLs from follow list events"""
@@ -357,11 +358,11 @@ class NostrRelayDiscovery:
                 if depth < self.max_depth:
                     try:
                         # Fetch follow lists from this relay
-                        follow_events = await self.fetch_follow_lists(current_relay)
+                        events = await self.fetch_events(current_relay)
                         
-                        if follow_events:
+                        if events:
                             # Extract new relays from follow lists
-                            new_relays = self.extract_relays_from_events(follow_events)
+                            new_relays = self.extract_relays_from_events(events)
                             
                             # Add new relays to visit queue for next depth level
                             for relay_url in new_relays:
