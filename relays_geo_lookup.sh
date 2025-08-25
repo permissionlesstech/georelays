@@ -1,12 +1,39 @@
 #!/bin/bash
 
-# Check if the output file is provided
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 output.csv"
     exit 1
 fi
 
 output_file="$1"
+
+sudo mkdir -p /var/www/ip-location-api
+sudo wget -q -O /var/www/ip-location-api/ip-location-api https://github.com/paul-norman/ip-location-api/releases/latest/download/ip-location-api-linux-x64.bin 
+sudo chmod +x /var/www/ip-location-api/ip-location-api
+
+sudo nano /var/www/ip-location-api/.env
+sudo echo "
+SERVER_HOST=127.0.0.1
+SERVER_PORT=8081
+
+API_KEY=
+
+COUNTRY=
+CITY=dbip-city
+ASN=
+
+UPDATE_TIME=01:30
+
+DB_TYPE=sqlite
+DB_USER=$PWD/db_ip.sqlite
+DB_SCHEMA=
+" > /var/www/ip-location-api/.env
+
+sudo /var/www/ip-location-api/ip-location-api > /dev/null &
+ip_location_pid=$!
+
+sleep 30
+
 echo "Relay URL,Latitude,Longitude" > "$output_file"
 
 while IFS= read -r url; do
@@ -24,7 +51,7 @@ while IFS= read -r url; do
 			attempt=0
 
 			while [[ -z "$location_data" && $attempt -lt $retries ]]; do
-				location_data=$(curl -s "https://ipinfo.io/$ip/json")
+				location_data=$(curl -s -k "http://localhost/ip/$ip")
 				#echo "location data: $(echo $location_data | jq)"
 				attempt=$((attempt + 1))
 				sleep 1
