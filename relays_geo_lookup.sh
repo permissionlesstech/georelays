@@ -76,3 +76,7 @@ done
 
 echo "Results written to $output_file"
 
+echo "Shutting off ip-location-api..."
+kill -SIGINT $ip_location_pid
+sudo rm -rf /var/www/ip-location-api
+
