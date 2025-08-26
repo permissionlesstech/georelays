@@ -31,7 +31,7 @@ jobs:
     
     - name: Install required dependencies
       run: |
-        sudo apt-get update && sudo apt-get install -y jq curl dnsutils
+        sudo apt-get update && sudo apt-get install -y jq dnsutils gzip
         wget https://github.com/fiatjaf/nak/releases/download/v0.15.3/nak-v0.15.3-linux-amd64
         sudo mv nak-v0.15.3-linux-amd64 /usr/local/bin/nak
         sudo chmod +x /usr/local/bin/nak
