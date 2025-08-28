@@ -55,7 +55,7 @@ This repository includes a GitHub Actions workflow under `.github/workflows/` th
 - Sets up Python and system dependencies
 - Runs `nostr_relay_discovery.py` to produce `relay_discovery_results.json`
 - Extracts the functioning relays with `jq`
-- Optionally runs `filter_bitchat_relays.sh` (if enabled/configured)
+- Runs `filter_bitchat_relays.sh`
 - Runs `relays_geo_lookup.sh` to generate `nostr_relays.csv`
 - Commits the updated artifacts back to the repository
 
@@ -64,4 +64,4 @@ To change the schedule, seed relay, or enable BitChat filtering in CI, edit the 
 ---
 
 ## Attribution
-`nostr_relays.csv` and `relay_discovery_results.json` may include DB‑IP data created by DB‑IP, available at https://www.db-ip.com.
+`nostr_relays.csv` and `relay_discovery_results.json` use a database curated by DB‑IP, available at https://www.db-ip.com.
