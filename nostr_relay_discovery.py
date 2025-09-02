@@ -20,6 +20,7 @@ from typing import Set, List, Dict, Optional, Tuple
 from urllib.parse import urlparse
 import websockets
 import websockets.exceptions
+import aiohttp
 
 
 # Configure logging
@@ -41,6 +42,7 @@ class RelayDiscoveryStats:
     events_processed: int = 0
     existing_relays_verified: int = 0
     existing_relays_failed: int = 0
+    excluded_by_nip11: int = 0
     start_time: float = field(default_factory=time.time)
     
     def print_stats(self):
@@ -54,6 +56,8 @@ class RelayDiscoveryStats:
         if self.existing_relays_verified > 0 or self.existing_relays_failed > 0:
             print(f"Existing relays verified: {self.existing_relays_verified}")
             print(f"Existing relays failed verification: {self.existing_relays_failed}")
+        if self.excluded_by_nip11 > 0:
+            print(f"Relays excluded by NIP-11 software check: {self.excluded_by_nip11}")
         print(f"Success rate: {(self.functioning_relays/max(1, self.total_relays_found)*100):.1f}%")
 
 
@@ -122,10 +126,65 @@ class NostrRelayDiscovery:
         random_bytes = secrets.token_bytes(16)
         return base64.b64encode(random_bytes).decode()
     
+    async def check_nip11_software(self, relay_url: str) -> bool:
+        """
+        Check NIP-11 information for the relay and return False if it's running
+        the excluded software (https://git.sr.ht/~gheartsfield/nostr-rs-relay)
+        """
+        try:
+            # Convert WebSocket URL to HTTP URL for NIP-11 check
+            http_url = relay_url.replace('wss://', 'https://').replace('ws://', 'http://')
+            
+            logger.debug(f"Checking NIP-11 info for {http_url}")
+            
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    'Accept': 'application/nostr+json',
+                    'User-Agent': 'nostr-relay-discovery/1.0'
+                }
+                
+                async with session.get(
+                    http_url, 
+                    headers=headers, 
+                    timeout=aiohttp.ClientTimeout(total=self.connection_timeout)
+                ) as response:
+                    if response.status == 200:
+                        try:
+                            nip11_data = await response.json()
+                            software = nip11_data.get('software', '')
+                            
+                            # Check if this is the excluded software
+                            if software == 'https://git.sr.ht/~gheartsfield/nostr-rs-relay':
+                                logger.info(f"✗ Relay {relay_url} is running excluded software: {software}")
+                                self.stats.excluded_by_nip11 += 1
+                                return False
+                            else:
+                                logger.debug(f"✓ Relay {relay_url} software check passed: {software}")
+                                return True
+                                
+                        except json.JSONDecodeError as e:
+                            logger.debug(f"Invalid JSON in NIP-11 response from {relay_url}: {e}")
+                            # If we can't parse the NIP-11 response, allow the relay
+                            return True
+                    else:
+                        logger.debug(f"NIP-11 request failed for {relay_url}: HTTP {response.status}")
+                        # If NIP-11 is not available, allow the relay
+                        return True
+                        
+        except Exception as e:
+            logger.debug(f"Error checking NIP-11 for {relay_url}: {e}")
+            # If there's an error checking NIP-11, allow the relay
+            return True
+    
     async def test_relay_connection(self, relay_url: str) -> bool:
         """Test if a relay is functioning by attempting to connect and validate Nostr protocol responses"""
         try:
             logger.debug(f"Testing connection to {relay_url}")
+            
+            # First, check NIP-11 to see if this relay is running excluded software
+            nip11_check_passed = await self.check_nip11_software(relay_url)
+            if not nip11_check_passed:
+                return False
             
             async with websockets.connect(
                 relay_url,
@@ -496,6 +555,7 @@ class NostrRelayDiscovery:
                 "events_processed": self.stats.events_processed,
                 "existing_relays_verified": self.stats.existing_relays_verified,
                 "existing_relays_failed": self.stats.existing_relays_failed,
+                "excluded_by_nip11": self.stats.excluded_by_nip11,
                 "discovery_duration": time.time() - self.stats.start_time
             },
             "functioning_relays": list(self.functioning_relays)
