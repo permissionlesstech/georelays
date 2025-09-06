@@ -47,6 +47,8 @@ jobs:
     - name: Update relay discovery results
       run: |
         python3 nostr_relay_discovery.py wss://relay.damus.io --output relay_discovery_results.json --batch-size 20
+      env:
+        BLOCKED_RELAYS: wss://nostr.2b9t.xyz,wss://nostr-relay.zimage.com
     
     - name: Update relay geolocation data
       run: |
