@@ -63,5 +63,23 @@ To change the schedule, seed relay, or enable BitChat filtering in CI, edit the 
 
 ---
 
+## Relay Count History
+
+These charts show the number of Nostr relay entries in our dataset over time:
+
+### BitChat-Compatible Relays
+
+The chart below shows relays that support BitChat events (kind 20000):
+
+![BitChat-Compatible Relay Count Over Time](assets/bitchat_relay_count_chart.png)
+
+### Total Functioning Relays
+
+The chart below shows all functioning relays discovered during the relay discovery process:
+
+![Total Functioning Relay Count Over Time](assets/total_relay_count_chart.png)
+
+The charts are automatically updated daily to reflect changes in the number of relays and show approximately 70 days of history.
+
 ## Attribution
 `nostr_relays.csv` and `relay_discovery_results.json` use a database curated by DB‑IP, available at https://www.db-ip.com.
