@@ -124,16 +124,6 @@ def create_plot(data_frame, title, y_label, output_path):
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.xticks(rotation=45)
     
-    # Add data points annotation
-    for i, row in data_frame.iterrows():
-        plt.annotate(
-            f"{row['count']}",
-            (row['date'], row['count']),
-            textcoords="offset points",
-            xytext=(0, 10),
-            ha='center'
-        )
-    
     # Add current count in the corner
     if not data_frame.empty:
         latest_count = data_frame['count'].iloc[-1]
