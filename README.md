@@ -87,8 +87,6 @@ The map below shows the geographical distribution of BitChat-compatible Nostr re
 
 ![Global Distribution of BitChat-Compatible Nostr Relays](assets/relay_locations_static.png)
 
-This visualization helps identify where relays are concentrated and which regions might benefit from additional relay deployments.
-
 Additional visualizations available in this repository:
 - **Heatmap**: A density visualization showing relay concentration areas (`assets/relay_locations_heatmap.png`)
 - **Interactive Map**: An HTML-based interactive map that allows zooming and clicking on individual relays (`assets/relay_locations_interactive.html`) - download and open in a browser to explore
