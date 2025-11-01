@@ -1,0 +1,64 @@
+name: Track Relay Count Changes
+
+on:
+  # Run after the "Update Relay Data" workflow completes
+  workflow_run:
+    workflows: ["Update Relay Data"]
+    types:
+      - completed
+  # Also allow manual triggering
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  track-relay-count:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 100  # Need deeper history to check previous commits (70+ days)
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Check if requirements.txt includes matplotlib, pandas, numpy
+        if ! grep -q "matplotlib\|pandas\|numpy" requirements.txt; then
+          # If not, install them directly
+          pip install matplotlib pandas numpy
+        else
+          # Otherwise use the requirements file
+          pip install -r requirements.txt
+        fi
+    
+    - name: Track relay count changes
+      run: |
+        mkdir -p assets
+        
+        # Execute the script
+        python scripts/track_relay_counts.py
+    
+    - name: Check for changes
+      id: git-check
+      run: |
+        git add assets/bitchat_relay_count_chart.png assets/total_relay_count_chart.png
+        git diff --staged --exit-code || echo "changes=true" >> $GITHUB_OUTPUT
+    
+    - name: Commit and push changes
+      if: steps.git-check.outputs.changes == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git commit -m "Update relay count charts - $(date -u)"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

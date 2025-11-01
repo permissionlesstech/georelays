@@ -63,5 +63,35 @@ To change the schedule, seed relay, or enable BitChat filtering in CI, edit the 
 
 ---
 
+## Relay Count History
+
+These charts show the number of Nostr relay entries in our dataset over time:
+
+### BitChat-Compatible Relays
+
+The chart below shows relays that support BitChat events (kind 20000):
+
+![BitChat-Compatible Relay Count Over Time](assets/bitchat_relay_count_chart.png)
+
+### Total Functioning Relays
+
+The chart below shows all functioning relays discovered during the relay discovery process:
+
+![Total Functioning Relay Count Over Time](assets/total_relay_count_chart.png)
+
+The charts are automatically updated daily to reflect changes in the number of relays and show approximately 70 days of history.
+
+## Global Distribution of Relays
+
+The map below shows the geographical distribution of BitChat-compatible Nostr relays around the world:
+
+![Global Distribution of BitChat-Compatible Nostr Relays](assets/relay_locations_static.png)
+
+Additional visualizations available in this repository:
+- **Heatmap**: A density visualization showing relay concentration areas (`assets/relay_locations_heatmap.png`)
+- **Interactive Map**: An HTML-based interactive map that allows zooming and clicking on individual relays (`assets/relay_locations_interactive.html`) - download and open in a browser to explore
+
+All maps are automatically updated alongside the relay data.
+
 ## Attribution
 `nostr_relays.csv` and `relay_discovery_results.json` use a database curated by DB‑IP, available at https://www.db-ip.com.
