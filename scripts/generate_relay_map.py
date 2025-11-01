@@ -48,38 +48,47 @@ def create_interactive_map(df, output_path):
 
 def create_static_map(df, output_path):
     """
-    Create a static PNG map showing relay locations on a simple world map.
+    Create a static PNG map showing relay locations on a proper world map.
     
     Args:
         df: DataFrame containing relay data with Latitude and Longitude columns
         output_path: Path to save the PNG map
     """
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    
     plt.figure(figsize=(15, 10))
     
-    # Create a simple base map
-    ax = plt.axes()
-    ax.set_facecolor('#DDEEFF')  # Light blue background for oceans
+    # Create a map with a proper projection
+    ax = plt.axes(projection=ccrs.PlateCarree())
     
-    # Draw a simple grid
-    for i in range(-180, 181, 30):
-        plt.axvline(x=i, color='#CCCCCC', linestyle='--', alpha=0.5)
+    # Add map features
+    ax.add_feature(cfeature.LAND, facecolor='#E5E5E5')
+    ax.add_feature(cfeature.OCEAN, facecolor='#DDEEFF')
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor='#999999')
+    ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor='#AAAAAA')
+    ax.add_feature(cfeature.LAKES, facecolor='#DDEEFF', edgecolor='#999999', linewidth=0.5)
+    ax.add_feature(cfeature.RIVERS, edgecolor='#99CCFF', linewidth=0.5)
     
-    for i in range(-90, 91, 30):
-        plt.axhline(y=i, color='#CCCCCC', linestyle='--', alpha=0.5)
+    # Add grid
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                      linewidth=0.5, color='gray', alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
     
     # Set map limits
-    plt.xlim(-180, 180)
-    plt.ylim(-90, 90)
+    ax.set_extent([-180, 180, -90, 90], crs=ccrs.PlateCarree())
     
     # Plot relay locations
     plt.scatter(
         df['Longitude'], 
         df['Latitude'],
-        alpha=0.7,
+        alpha=0.8,
         c='blue',
         s=30,
         edgecolor='white',
-        linewidth=0.5
+        linewidth=0.5,
+        transform=ccrs.PlateCarree()
     )
     
     # Add title and labels
@@ -94,19 +103,6 @@ def create_static_map(df, output_path):
         fontsize=10,
         bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.8)
     )
-    
-    # Add labels for equator and prime meridian
-    plt.text(0, -5, "0° (Prime Meridian)", ha='center', fontsize=8, alpha=0.7)
-    plt.text(5, 0, "0° (Equator)", va='center', rotation=90, fontsize=8, alpha=0.7)
-    
-    # Remove axes ticks but keep latitude/longitude labels at 30-degree intervals
-    plt.xticks([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180],
-              ["180°W", "150°W", "120°W", "90°W", "60°W", "30°W", "0°", 
-               "30°E", "60°E", "90°E", "120°E", "150°E", "180°E"], 
-              fontsize=8)
-    plt.yticks([-90, -60, -30, 0, 30, 60, 90],
-              ["90°S", "60°S", "30°S", "0°", "30°N", "60°N", "90°N"], 
-              fontsize=8)
     
     # Adjust layout and save
     plt.tight_layout()
@@ -123,22 +119,29 @@ def create_heatmap(df, output_path):
         df: DataFrame containing relay data with Latitude and Longitude columns
         output_path: Path to save the PNG heatmap
     """
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    from scipy.ndimage import gaussian_filter
+    
     plt.figure(figsize=(15, 10))
     
-    # Create a simple base map
-    ax = plt.axes()
-    ax.set_facecolor('#DDEEFF')  # Light blue background for oceans
+    # Create a map with a proper projection
+    ax = plt.axes(projection=ccrs.PlateCarree())
     
-    # Draw a simple grid
-    for i in range(-180, 181, 30):
-        plt.axvline(x=i, color='#CCCCCC', linestyle='--', alpha=0.5)
+    # Add map features
+    ax.add_feature(cfeature.LAND, facecolor='#E5E5E5')
+    ax.add_feature(cfeature.OCEAN, facecolor='#DDEEFF')
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor='#999999')
+    ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor='#AAAAAA')
     
-    for i in range(-90, 91, 30):
-        plt.axhline(y=i, color='#CCCCCC', linestyle='--', alpha=0.5)
+    # Add grid
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                      linewidth=0.5, color='gray', alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
     
     # Set map limits
-    plt.xlim(-180, 180)
-    plt.ylim(-90, 90)
+    ax.set_extent([-180, 180, -90, 90], crs=ccrs.PlateCarree())
     
     # Create grid for heatmap
     x = np.linspace(-180, 180, 360)
@@ -155,7 +158,6 @@ def create_heatmap(df, output_path):
             heatmap[lat_idx, lon_idx] += 1
     
     # Apply Gaussian smoothing to heatmap
-    from scipy.ndimage import gaussian_filter
     heatmap = gaussian_filter(heatmap, sigma=3)
     
     # Create custom colormap (blue to white)
@@ -163,7 +165,7 @@ def create_heatmap(df, output_path):
     cmap = LinearSegmentedColormap.from_list('custom_blue', colors)
     
     # Plot heatmap
-    plt.pcolormesh(x, y, heatmap, cmap=cmap, alpha=0.7)
+    plt.pcolormesh(x, y, heatmap, cmap=cmap, alpha=0.7, transform=ccrs.PlateCarree())
     
     # Add title
     plt.title('Global Heatmap of BitChat-Compatible Nostr Relays', fontsize=16)
@@ -177,19 +179,6 @@ def create_heatmap(df, output_path):
         fontsize=10,
         bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.8)
     )
-    
-    # Add labels for equator and prime meridian
-    plt.text(0, -5, "0° (Prime Meridian)", ha='center', fontsize=8, alpha=0.7)
-    plt.text(5, 0, "0° (Equator)", va='center', rotation=90, fontsize=8, alpha=0.7)
-    
-    # Add longitude/latitude labels
-    plt.xticks([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180],
-              ["180°W", "150°W", "120°W", "90°W", "60°W", "30°W", "0°", 
-               "30°E", "60°E", "90°E", "120°E", "150°E", "180°E"], 
-              fontsize=8)
-    plt.yticks([-90, -60, -30, 0, 30, 60, 90],
-              ["90°S", "60°S", "30°S", "0°", "30°N", "60°N", "90°N"], 
-              fontsize=8)
     
     # Adjust layout and save
     plt.tight_layout()
