@@ -3,7 +3,7 @@ name: Update Relay Maps
 on:
   # Run after the "Update Relay Data" workflow completes
   workflow_run:
-    workflows: ["Update Relay Data"]
+    workflows: ["Track Relay Count Changes"]
     types:
       - completed
   # Also allow manual triggering
