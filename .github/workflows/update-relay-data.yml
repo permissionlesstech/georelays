@@ -42,7 +42,7 @@ jobs:
     - name: Make scripts executable
       run: |
         chmod +x filter_bitchat_relays.sh
-        chmod +x relays_geo_lookup.sh
+        chmod +x relays_geo_lookup.py
     
     - name: Update relay discovery results
       run: |
@@ -50,7 +50,7 @@ jobs:
     
     - name: Update relay geolocation data
       run: |
-        cat relay_discovery_results.json | jq .functioning_relays[] | ./filter_bitchat_relays.sh | sed 's|^wss://||' | ./relays_geo_lookup.sh nostr_relays.csv
+        cat relay_discovery_results.json | jq .functioning_relays[] | ./filter_bitchat_relays.sh | sed 's|^wss://||' | python3 relays_geo_lookup.py nostr_relays.csv
     
     - name: Check for changes
       id: git-check
