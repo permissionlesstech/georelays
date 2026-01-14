@@ -5,7 +5,7 @@ This project is organized as follows:
 ## Core Files
 - `nostr_relay_discovery.py` - Python script for discovering functioning Nostr relays
 - `filter_bitchat_relays.sh` - Shell script to filter relays for BitChat capability
-- `relays_geo_lookup.sh` - Shell script to geolocate relay servers
+- `relays_geo_lookup.py` - Python script to geolocate relay servers
 - `nostr_relays.csv` - The main output file with relay URLs and geolocation data
 
 ## Directories

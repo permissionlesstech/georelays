@@ -28,12 +28,12 @@ The repository contains three scripts that form a simple pipeline:
   - Uses the `nak` CLI to query (`nak req -k 20000`) and post (`nak event -k 20000 ...`).
 - Output: writes to stdout the subset of input relay URLs that pass both checks. You can redirect this to a file, e.g., `bitchat_relays.txt`.
 
-3) Geolocate relays (Bash)
-- Script: `relays_geo_lookup.sh <output.csv>`
+3) Geolocate relays (Python)
+- Script: `relays_geo_lookup.py <output.csv>`
 - What it does:
   - Downloads the DB‑IP city IPv4 ranges (`dbip-city-ipv4-num.csv.gz`), loads it into memory, and uses a binary search to map IPv4s to latitude/longitude.
-  - Reads hostnames from stdin, resolves them via `dig` to A records, and looks up the first IPv4 with available coordinates.
-- Input: hostnames only (e.g., `relay.example.com`), not full ws/wss URLs.
+  - Reads URLs from stdin or file, resolves them asynchronously to A records, and looks up the first IPv4 with available coordinates.
+- Input: ws/wss URLs or hostnames (e.g., `wss://relay.example.com`).
 - Output: writes a CSV with header `Relay URL,Latitude,Longitude` to the file you specify.
 
 Note: The geolocation step is IPv4‑only (the DB‑IP file used here is IPv4). IPv6‑only relays will be skipped.
@@ -44,7 +44,7 @@ Note: The geolocation step is IPv4‑only (the DB‑IP file used here is IPv4). 
 - The discovery step uses timeouts and concurrent batches; tune `--batch-size`, `--timeout`, and `--max-depth` for your environment.
 - The BitChat filter posts a test kind 20000 event. Ensure `nak` is configured to publish (e.g., via its config or environment variables as per `nak` docs).
 - Geolocation is an estimate based on DB‑IP and only for IPv4. Accuracy varies and may reflect the ISP/hosting POP rather than precise server location.
-- `relays_geo_lookup.sh` stops at the first IPv4 for which DB‑IP provides coordinates. Some hostnames resolve to multiple IPs.
+- `relays_geo_lookup.py` stops at the first IPv4 for which DB‑IP provides coordinates. Some hostnames resolve to multiple IPs.
 
 ---
 
@@ -56,7 +56,7 @@ This repository includes a GitHub Actions workflow under `.github/workflows/` th
 - Runs `nostr_relay_discovery.py` to produce `relay_discovery_results.json`
 - Extracts the functioning relays with `jq`
 - Runs `filter_bitchat_relays.sh`
-- Runs `relays_geo_lookup.sh` to generate `nostr_relays.csv`
+- Runs `relays_geo_lookup.py` to generate `nostr_relays.csv`
 - Commits the updated artifacts back to the repository
 
 To change the schedule, seed relay, or enable BitChat filtering in CI, edit the workflow file in `.github/workflows/`.
