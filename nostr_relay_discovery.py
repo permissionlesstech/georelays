@@ -14,6 +14,7 @@ import time
 import argparse
 import secrets
 import base64
+import os
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Set, List, Dict, Optional, Tuple
@@ -203,11 +204,39 @@ class NostrRelayDiscovery:
         if not relay_urls:
             return {}
         
-        logger.info(f"Testing {len(relay_urls)} relays concurrently")
+        # Filter out blocked relays
+        blocked_relays_env = os.getenv('BLOCKED_RELAYS', '')
+        blocked_relays = set()
+        if blocked_relays_env:
+            raw_relays = [relay.strip() for relay in blocked_relays_env.split(',')]
+            for relay in raw_relays:
+                if relay and self.is_valid_relay_url(relay):
+                    normalized_relay = self.normalize_relay_url(relay)
+                    if normalized_relay:
+                        blocked_relays.add(normalized_relay)
+        
+        filtered_relays = []
+        blocked_count = 0
+        for relay_url in relay_urls:
+            normalized_url = self.normalize_relay_url(relay_url)
+            if normalized_url in blocked_relays:
+                logger.info(f"Skipping blocked relay: {relay_url}")
+                blocked_count += 1
+            else:
+                filtered_relays.append(relay_url)
+        
+        if blocked_count > 0:
+            logger.info(f"Filtered out {blocked_count} blocked relays")
+        
+        if not filtered_relays:
+            # Return blocked relays as non-functioning
+            return {relay_url: False for relay_url in relay_urls}
+        
+        logger.info(f"Testing {len(filtered_relays)} relays concurrently")
         
         # Create tasks for concurrent testing
         tasks = []
-        for relay_url in relay_urls:
+        for relay_url in filtered_relays:
             task = asyncio.create_task(self.test_relay_connection(relay_url))
             tasks.append((relay_url, task))
         
@@ -223,6 +252,12 @@ class NostrRelayDiscovery:
                     logger.warning(f"✗ Relay {relay_url} is not functioning")
             except Exception as e:
                 logger.error(f"Error testing relay {relay_url}: {e}")
+                results[relay_url] = False
+        
+        # Add blocked relays as non-functioning to the results
+        for relay_url in relay_urls:
+            normalized_url = self.normalize_relay_url(relay_url)
+            if normalized_url in blocked_relays:
                 results[relay_url] = False
         
         functioning_count = sum(1 for status in results.values() if status)
@@ -324,6 +359,17 @@ class NostrRelayDiscovery:
         """Extract relay URLs from follow list events"""
         relay_urls = set()
         
+        # Get blocked relays
+        blocked_relays_env = os.getenv('BLOCKED_RELAYS', '')
+        blocked_relays = set()
+        if blocked_relays_env:
+            raw_relays = [relay.strip() for relay in blocked_relays_env.split(',')]
+            for relay in raw_relays:
+                if relay and self.is_valid_relay_url(relay):
+                    normalized_relay = self.normalize_relay_url(relay)
+                    if normalized_relay:
+                        blocked_relays.add(normalized_relay)
+        
         for event in events:
             self.stats.events_processed += 1
             
@@ -339,14 +385,20 @@ class NostrRelayDiscovery:
                     potential_relay = tag[1]
                     if self.is_valid_relay_url(potential_relay):
                         normalized_url = self.normalize_relay_url(potential_relay)
-                        relay_urls.add(normalized_url)
+                        if normalized_url not in blocked_relays:
+                            relay_urls.add(normalized_url)
+                        else:
+                            logger.debug(f"Skipping blocked relay from events: {normalized_url}")
                 
                 # Also check 'p' tags for potential relay info in some implementations
                 elif tag[0] == 'p' and len(tag) >= 3:
                     # Some implementations put relay info in the 3rd element of p tags
                     if len(tag) > 2 and self.is_valid_relay_url(tag[2]):
                         normalized_url = self.normalize_relay_url(tag[2])
-                        relay_urls.add(normalized_url)
+                        if normalized_url not in blocked_relays:
+                            relay_urls.add(normalized_url)
+                        else:
+                            logger.debug(f"Skipping blocked relay from events: {normalized_url}")
         
         return relay_urls
     
@@ -482,7 +534,8 @@ class NostrRelayDiscovery:
                 "max_depth": self.max_depth,
                 "connection_timeout": self.connection_timeout,
                 "save_point": self.save_point,
-                "batch_size": self.batch_size
+                "batch_size": self.batch_size,
+                "blocked_relays_env": os.getenv('BLOCKED_RELAYS', '')
             },
             "progress_info": {
                 "relays_processed": len(self.visited_relays),
