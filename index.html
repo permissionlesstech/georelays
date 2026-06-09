@@ -669,6 +669,9 @@
             <li class="channel-item active" data-tab="map-tab">
               <span class="channel-hash">#</span>bitchat-map
             </li>
+            <li class="channel-item" data-tab="globe-tab">
+              <span class="channel-hash">#</span>bitchat-3d
+            </li>
             <li class="channel-item" data-tab="charts-tab">
               <span class="channel-hash">#</span>bitchat-charts
             </li>
@@ -717,6 +720,11 @@
           <!-- Tab 1: Map View -->
           <div class="tab-content active" id="map-tab">
             <div id="map"></div>
+          </div>
+
+          <!-- Tab 1.5: 3D Globe View -->
+          <div class="tab-content" id="globe-tab">
+            <div id="globe-3d-container" style="width: 100%; height: 100%; position: relative; background-color: var(--bg-darker);"></div>
           </div>
 
           <!-- Tab 2: Charts View -->
@@ -815,6 +823,9 @@
   
   <!-- ChartJS JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Globe.gl WebGL JS for the 3D globe -->
+  <script src="https://unpkg.com/globe.gl"></script>
 
   <script>
     // Global App State
@@ -1013,6 +1024,24 @@
           // Leaflet needs an invalidateSize call when container shifts visibility
           setTimeout(() => state.map.invalidateSize(), 50);
         }
+      } else if (tabId === 'globe-tab') {
+        titleEl.textContent = '#bitchat-3d';
+        descEl.textContent = '3D Cinematic holographic terminal tracking geolocated relays';
+        
+        // Lazy initialize the 3D globe to optimize startup performance
+        if (!state.globe) {
+          logSystemMessage("Booting WebGL 3D Globe Engine... Loading targeting mesh.");
+          setTimeout(() => {
+            init3DGlobe();
+            logSystemMessage("3D Holographic target grid initialized. Auto-rotate ENABLED.");
+          }, 50);
+        } else {
+          // Trigger a resize/refresh in case size of container shifted
+          const container = document.getElementById('globe-3d-container');
+          if (container) {
+            setTimeout(() => state.globe.width(container.clientWidth).height(container.clientHeight), 50);
+          }
+        }
       } else if (tabId === 'charts-tab') {
         titleEl.textContent = '#bitchat-charts';
         descEl.textContent = 'Interactive trend analysis over custom date ranges';
@@ -1038,6 +1067,79 @@
         maxZoom: 20
       }).addTo(state.map);
     }
+
+    // WebGL 3D Globe Setup
+    function init3DGlobe() {
+      const container = document.getElementById('globe-3d-container');
+      if (!container || state.globe) return;
+
+      const styles = getComputedStyle(document.documentElement);
+      const primaryColor = styles.getPropertyValue('--text-primary').trim();
+      const accentColor = styles.getPropertyValue('--accent-color').trim();
+
+      // Instantiate Globe.gl
+      state.globe = Globe()(container)
+        .backgroundColor('rgba(0,0,0,0)') // Transparent context to let the CSS background bleed through
+        .showAtmosphere(true)
+        .atmosphereColor(primaryColor) // glowing atmosphere matching current terminal theme
+        .atmosphereAltitude(0.18)
+        .showGraticules(true) // latitude/longitude wireframe grid
+        
+        // Use an empty globe texture to make it a transparent vector outline ball
+        .globeImageUrl('') 
+        
+        // Bind Geolocation coordinates
+        .pointsData(state.relays)
+        .pointLat(d => d.lat)
+        .pointLng(d => d.lon)
+        .pointColor(d => d.isBitChat === 1 ? primaryColor : accentColor)
+        .pointRadius(d => d.isBitChat === 1 ? 0.6 : 0.3)
+        .pointAltitude(d => d.isBitChat === 1 ? 0.08 : 0.03) // Taller towers for voice/BitChat relays!
+        .pointResolution(8)
+        
+        // Styled popup tooltip
+        .pointLabel(d => `
+          <div style="background-color: var(--bg-darker); border: 1px solid ${d.isBitChat === 1 ? 'var(--text-primary)' : 'var(--accent-color)'}; color: var(--text-primary); font-family: 'Fira Code', monospace; font-size: 0.8rem; padding: 8px; border-radius: 4px; box-shadow: var(--border-glow);">
+            <strong style="color: var(--accent-color);">wss://${d.url}</strong><br>
+            Scope: ${d.isBitChat === 1 ? 'BitChat (Kind 20000)' : 'Standard Relay'}<br>
+            Coords: ${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}
+          </div>
+        `)
+        
+        // Clicking points triggers terminal WHOIS report
+        .onPointClick(d => {
+          triggerWhois(d);
+        });
+
+      // Enable slowly spinning globe controls
+      state.globe.controls().autoRotate = true;
+      state.globe.controls().autoRotateSpeed = 0.6;
+      state.globe.controls().enableZoom = true;
+
+      // Adjust camera distance for global viewing
+      state.globe.pointOfView({ lat: 20, lng: 0, altitude: 2.2 });
+    }
+
+    function updateGlobeColors() {
+      if (!state.globe) return;
+      const styles = getComputedStyle(document.documentElement);
+      const primaryColor = styles.getPropertyValue('--text-primary').trim();
+      const accentColor = styles.getPropertyValue('--accent-color').trim();
+
+      state.globe
+        .atmosphereColor(primaryColor)
+        .pointColor(d => d.isBitChat === 1 ? primaryColor : accentColor);
+    }
+
+    // Window Resize Handler to update WebGL aspect ratios
+    window.addEventListener('resize', () => {
+      if (state.globe) {
+        const container = document.getElementById('globe-3d-container');
+        if (container) {
+          state.globe.width(container.clientWidth).height(container.clientHeight);
+        }
+      }
+    });
 
     // Load and Parse Relay CSV
     function loadRelayData() {
@@ -1208,15 +1310,19 @@
         li.appendChild(name);
 
         li.addEventListener('click', () => {
-          // Zoom to location on map
-          switchTab('map-tab');
-          state.map.setView([r.lat, r.lon], 7);
-          
-          // Find marker and open popup
-          // Since markers are filtered and match the filtered index or we find it by URL
-          const markerIndex = state.relays.filter(el => !showBitChatOnly || el.isBitChat === 1).indexOf(r);
-          if (markerIndex !== -1 && state.markers[markerIndex]) {
-            state.markers[markerIndex].openPopup();
+          if (state.currentTab === 'globe-tab' && state.globe) {
+            // Smoothly glide 3D camera in space to target node (altitude 1.2, 1.2s transition)
+            state.globe.pointOfView({ lat: r.lat, lng: r.lon, altitude: 1.2 }, 1200);
+          } else {
+            // Zoom to location on 2D map
+            switchTab('map-tab');
+            state.map.setView([r.lat, r.lon], 7);
+            
+            // Find marker and open popup
+            const markerIndex = state.relays.filter(el => !showBitChatOnly || el.isBitChat === 1).indexOf(r);
+            if (markerIndex !== -1 && state.markers[markerIndex]) {
+              state.markers[markerIndex].openPopup();
+            }
           }
           
           // Output WHOIS to system logs
@@ -1230,6 +1336,13 @@
     function toggleBitChatFilter() {
       populateNicklist();
       plotRelayMarkers();
+      
+      // Instantly update the 3D Globe data if it's active
+      if (state.globe) {
+        const showBitChatOnly = document.getElementById('bitchat-filter-checkbox') ? document.getElementById('bitchat-filter-checkbox').checked : true;
+        const filteredPoints = state.relays.filter(r => !showBitChatOnly || r.isBitChat === 1);
+        state.globe.pointsData(filteredPoints);
+      }
     }
 
     function onNickSearchInput(val) {
@@ -1588,6 +1701,7 @@
           logSystemMessage("=================================================");
           logSystemMessage("/help                - Displays this instruction panel");
           logSystemMessage("/map                 - Toggle view to interactive geographic node map");
+          logSystemMessage("/globe /3d           - Toggle view to interactive 3D WebGL globe");
           logSystemMessage("/charts              - Toggle view to metrics & historical graphs");
           logSystemMessage("/log                 - Toggle view to system diagnostic console");
           logSystemMessage("/whois <relay>       - Query specific relay metadata & locate");
@@ -1601,6 +1715,12 @@
         case '/map':
           switchTab('map-tab');
           logSystemMessage("Mainframe display routed to #bitchat-map.");
+          break;
+
+        case '/globe':
+        case '/3d':
+          switchTab('globe-tab');
+          logSystemMessage("Mainframe display routed to #bitchat-3d.");
           break;
 
         case '/charts':
@@ -1659,6 +1779,7 @@
           // Re-render markers and charts with new CSS variables
           setTimeout(() => {
             plotRelayMarkers();
+            updateGlobeColors();
             if (state.history) {
               const startVal = document.getElementById('chart-start-date').value;
               const endVal = document.getElementById('chart-end-date').value;
@@ -1699,11 +1820,15 @@
           const sub = args[0].toLowerCase();
           const match = state.relays.find(r => r.url.toLowerCase().includes(sub));
           if (match) {
-            switchTab('map-tab');
-            state.map.setView([match.lat, match.lon], 7);
-            const index = state.relays.indexOf(match);
-            if (index !== -1 && state.markers[index]) {
-              state.markers[index].openPopup();
+            if (state.currentTab === 'globe-tab' && state.globe) {
+              state.globe.pointOfView({ lat: match.lat, lng: match.lon, altitude: 1.2 }, 1200);
+            } else {
+              switchTab('map-tab');
+              state.map.setView([match.lat, match.lon], 7);
+              const index = state.relays.indexOf(match);
+              if (index !== -1 && state.markers[index]) {
+                state.markers[index].openPopup();
+              }
             }
             triggerWhois(match);
           } else {
