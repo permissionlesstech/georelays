@@ -1,0 +1,706 @@
+{
+  "bitchat": [
+    {
+      "date": "2026-04-01",
+      "count": 313,
+      "commit": "14911a0291e0a93fab740f299528a50ef0bce41f"
+    },
+    {
+      "date": "2026-04-02",
+      "count": 318,
+      "commit": "81247a5a203e39c1f3900964f099952f8f84cb86"
+    },
+    {
+      "date": "2026-04-03",
+      "count": 326,
+      "commit": "32a220a6e03854c1903fcdfdc43ea48eee98bc0d"
+    },
+    {
+      "date": "2026-04-04",
+      "count": 324,
+      "commit": "c9feb6caa6104a222e05e2e31924599aa44aa045"
+    },
+    {
+      "date": "2026-04-05",
+      "count": 307,
+      "commit": "9d2c122a77924b3dd354c0bc58b9f48fb3afe745"
+    },
+    {
+      "date": "2026-04-06",
+      "count": 310,
+      "commit": "189f0cb61660fbf1f890b0f9e4d6ee5123dc3319"
+    },
+    {
+      "date": "2026-04-07",
+      "count": 316,
+      "commit": "4f807176c3302e848df6f3ad914f710409c45088"
+    },
+    {
+      "date": "2026-04-08",
+      "count": 309,
+      "commit": "71aa4c6e6b70fc3f9091ed3ee551ad00efbfd868"
+    },
+    {
+      "date": "2026-04-09",
+      "count": 298,
+      "commit": "e2d12e6042760defed56b9120eeadb905b9f2164"
+    },
+    {
+      "date": "2026-04-10",
+      "count": 296,
+      "commit": "1e6cbc2536c6907b5be42e727042307c46869355"
+    },
+    {
+      "date": "2026-04-11",
+      "count": 303,
+      "commit": "e69da46ee7dd28f7c2e4374259e518272f84a387"
+    },
+    {
+      "date": "2026-04-12",
+      "count": 303,
+      "commit": "794e5747b6de166736a7c07da118cf50c80b579e"
+    },
+    {
+      "date": "2026-04-13",
+      "count": 308,
+      "commit": "f8299ccc672e1fd80444323413f214c6ba98d51b"
+    },
+    {
+      "date": "2026-04-14",
+      "count": 303,
+      "commit": "def570268e4272edb70ff5225d2c78004c13da5a"
+    },
+    {
+      "date": "2026-04-15",
+      "count": 302,
+      "commit": "7f05aa6ab9199a257ea43846df2326fb6a8e1ecf"
+    },
+    {
+      "date": "2026-04-16",
+      "count": 320,
+      "commit": "30081c8c98c3611e9c2836c2663a2356baeb8338"
+    },
+    {
+      "date": "2026-04-17",
+      "count": 312,
+      "commit": "7c57ed459f8ac2e56b39b850dbfd8397aa82e984"
+    },
+    {
+      "date": "2026-04-18",
+      "count": 308,
+      "commit": "a5b6663045b885a84a753683126a40e331ac195b"
+    },
+    {
+      "date": "2026-04-19",
+      "count": 307,
+      "commit": "d8cdc0544e43fed0167ee3a61fa5634e0ad31f0f"
+    },
+    {
+      "date": "2026-04-20",
+      "count": 304,
+      "commit": "52f3548d94f1217dc7edf9e5621260162ac4fe02"
+    },
+    {
+      "date": "2026-04-21",
+      "count": 306,
+      "commit": "1fce704363d404ca4960c8519d0baa5f20ab94bb"
+    },
+    {
+      "date": "2026-04-22",
+      "count": 311,
+      "commit": "93dd472f0574273c60817cd3a2bfee075f586bcf"
+    },
+    {
+      "date": "2026-04-23",
+      "count": 308,
+      "commit": "624149d3b24c2c95f30db54a6042427251fe02e5"
+    },
+    {
+      "date": "2026-04-24",
+      "count": 312,
+      "commit": "206c2b3d85f454d50740f407c15899a244c7cd5d"
+    },
+    {
+      "date": "2026-04-25",
+      "count": 298,
+      "commit": "0e8730298da419b71415fdf286b9480c7cf48d83"
+    },
+    {
+      "date": "2026-04-26",
+      "count": 304,
+      "commit": "93cdff6821cdd1bea7e5d76563f64d83536297d2"
+    },
+    {
+      "date": "2026-04-27",
+      "count": 295,
+      "commit": "01789f3b59777aa6c136cb9f1dcee5b4cc7f1507"
+    },
+    {
+      "date": "2026-04-28",
+      "count": 296,
+      "commit": "a40a3ebb7e1eb6bdc872f6427cffce0447a46ddb"
+    },
+    {
+      "date": "2026-04-29",
+      "count": 297,
+      "commit": "1622eaef99c1e956a85e4f49847f945cd56e3e68"
+    },
+    {
+      "date": "2026-04-30",
+      "count": 301,
+      "commit": "4941fc3a55cc2c8129a7772c779d67082f8de258"
+    },
+    {
+      "date": "2026-05-01",
+      "count": 281,
+      "commit": "b9f05d1d907606a8e97561bcda600b7f7a74c128"
+    },
+    {
+      "date": "2026-05-02",
+      "count": 295,
+      "commit": "fa8e0e5bee8352824726ee771a4737b1f8de1595"
+    },
+    {
+      "date": "2026-05-03",
+      "count": 294,
+      "commit": "a5edabbc5746f953c4243950d014bde564412722"
+    },
+    {
+      "date": "2026-05-04",
+      "count": 289,
+      "commit": "ffea54bf59e828485163d93e8971c4a240fc4193"
+    },
+    {
+      "date": "2026-05-05",
+      "count": 294,
+      "commit": "160a6f5d48472b98edfee30dba8c747c7689a961"
+    },
+    {
+      "date": "2026-05-06",
+      "count": 292,
+      "commit": "df028960e2075543fa95c606bb652d94e0c471d7"
+    },
+    {
+      "date": "2026-05-07",
+      "count": 297,
+      "commit": "d2151e09504b7dde728602f744efe88758b4c2d7"
+    },
+    {
+      "date": "2026-05-08",
+      "count": 289,
+      "commit": "44dd5313bfe5b7ae545fea97b9870c5a7a86b667"
+    },
+    {
+      "date": "2026-05-09",
+      "count": 286,
+      "commit": "4b7d51d7bc05b1864923a6c9b3d6c87ed5ade228"
+    },
+    {
+      "date": "2026-05-10",
+      "count": 300,
+      "commit": "b18fcd87ac009b5073e499f2e3ffa0bec053c35f"
+    },
+    {
+      "date": "2026-05-11",
+      "count": 292,
+      "commit": "3b2ded3e07ec61ab61717ab278ef25389e95ec8f"
+    },
+    {
+      "date": "2026-05-12",
+      "count": 292,
+      "commit": "135c6fb2098a324fbf1d460472d5b0a6498fa73f"
+    },
+    {
+      "date": "2026-05-13",
+      "count": 286,
+      "commit": "aa1ef7148291aa61caf864bc86bfb523fa286661"
+    },
+    {
+      "date": "2026-05-14",
+      "count": 285,
+      "commit": "94841ecc5ca49b68430d842d77db619603f10010"
+    },
+    {
+      "date": "2026-05-15",
+      "count": 289,
+      "commit": "5c8e9413f4fdc1743094ba35e1d4b63389683d5d"
+    },
+    {
+      "date": "2026-05-16",
+      "count": 290,
+      "commit": "7889a0e96d13343dee531bfef6d01c41f2dd49fb"
+    },
+    {
+      "date": "2026-05-17",
+      "count": 284,
+      "commit": "9d224e22b0d6099cb418a7f50051e963228f1424"
+    },
+    {
+      "date": "2026-05-18",
+      "count": 291,
+      "commit": "107d7a7c9cf9bc682d4fbeb1202e31a2ae391d2d"
+    },
+    {
+      "date": "2026-05-19",
+      "count": 292,
+      "commit": "64cc205d6d7c73773a5bddc0efb8ba0b927abb6a"
+    },
+    {
+      "date": "2026-05-20",
+      "count": 312,
+      "commit": "17a7a0a7b9d753f5256270e5a0f254cfa7f08f95"
+    },
+    {
+      "date": "2026-05-21",
+      "count": 306,
+      "commit": "d70a971586bd5245a64bc40c09d23f1c2527cbe8"
+    },
+    {
+      "date": "2026-05-22",
+      "count": 321,
+      "commit": "5cb8594571e797dc78b2935f5833e4480caf7ab3"
+    },
+    {
+      "date": "2026-05-23",
+      "count": 306,
+      "commit": "a93956a165228a8ac2bef2a8d0b4c23d9210c0b6"
+    },
+    {
+      "date": "2026-05-24",
+      "count": 299,
+      "commit": "1e28dfcbd6c981fec97489cbd0589669a4708ef2"
+    },
+    {
+      "date": "2026-05-25",
+      "count": 309,
+      "commit": "48a297036a174530bbbe4130ae4fef1433f5f784"
+    },
+    {
+      "date": "2026-05-26",
+      "count": 293,
+      "commit": "1228a286e5bd3b437fdd065adfa44d094fac93db"
+    },
+    {
+      "date": "2026-05-27",
+      "count": 315,
+      "commit": "e945f2e05721a02c49b25ecbcd01b97d71c3c4ae"
+    },
+    {
+      "date": "2026-05-28",
+      "count": 307,
+      "commit": "b8bef31a209aeeaa674b73fd10f16b4f583d13cd"
+    },
+    {
+      "date": "2026-05-29",
+      "count": 310,
+      "commit": "f270a909f34572fda7a9bd59aae953b5ce91258a"
+    },
+    {
+      "date": "2026-05-30",
+      "count": 398,
+      "commit": "4443fd5c736a77d0edc36b8d4afc555355aa0d9f"
+    },
+    {
+      "date": "2026-05-31",
+      "count": 430,
+      "commit": "6a49158974bab3cab902862d3b875089144eec14"
+    },
+    {
+      "date": "2026-06-01",
+      "count": 442,
+      "commit": "9d0f2327cd99366aec736f535fe47dcde37d7079"
+    },
+    {
+      "date": "2026-06-02",
+      "count": 451,
+      "commit": "16f4144cb78466835dfa39c75c33d73b21130ce4"
+    },
+    {
+      "date": "2026-06-03",
+      "count": 442,
+      "commit": "48689de66c6270ef1a67826cb96a5ba79c33ac8a"
+    },
+    {
+      "date": "2026-06-04",
+      "count": 444,
+      "commit": "266326172b89d711689990daf6186e30cdefed32"
+    },
+    {
+      "date": "2026-06-05",
+      "count": 424,
+      "commit": "90dcacc89cf766fc9870ef311f184f2e73902a2a"
+    },
+    {
+      "date": "2026-06-06",
+      "count": 440,
+      "commit": "17eccd69aa344534646a7c1f78e4f759386f3660"
+    },
+    {
+      "date": "2026-06-07",
+      "count": 427,
+      "commit": "fe2f0678f2f7b6ed2838fd56e0f7f14e241b09f2"
+    },
+    {
+      "date": "2026-06-08",
+      "count": 416,
+      "commit": "1acd1ea3d9d8f32acda30ef91a26bc3ca7600022"
+    },
+    {
+      "date": "2026-06-09",
+      "count": 411,
+      "commit": "1184a7b20eef09dad178ca10524ec8fcd81a3f5d"
+    }
+  ],
+  "total": [
+    {
+      "date": "2026-04-01",
+      "count": 767,
+      "commit": "14911a0291e0a93fab740f299528a50ef0bce41f"
+    },
+    {
+      "date": "2026-04-02",
+      "count": 773,
+      "commit": "81247a5a203e39c1f3900964f099952f8f84cb86"
+    },
+    {
+      "date": "2026-04-03",
+      "count": 773,
+      "commit": "32a220a6e03854c1903fcdfdc43ea48eee98bc0d"
+    },
+    {
+      "date": "2026-04-04",
+      "count": 777,
+      "commit": "c9feb6caa6104a222e05e2e31924599aa44aa045"
+    },
+    {
+      "date": "2026-04-05",
+      "count": 766,
+      "commit": "9d2c122a77924b3dd354c0bc58b9f48fb3afe745"
+    },
+    {
+      "date": "2026-04-06",
+      "count": 780,
+      "commit": "189f0cb61660fbf1f890b0f9e4d6ee5123dc3319"
+    },
+    {
+      "date": "2026-04-07",
+      "count": 775,
+      "commit": "4f807176c3302e848df6f3ad914f710409c45088"
+    },
+    {
+      "date": "2026-04-08",
+      "count": 772,
+      "commit": "71aa4c6e6b70fc3f9091ed3ee551ad00efbfd868"
+    },
+    {
+      "date": "2026-04-09",
+      "count": 771,
+      "commit": "e2d12e6042760defed56b9120eeadb905b9f2164"
+    },
+    {
+      "date": "2026-04-10",
+      "count": 763,
+      "commit": "1e6cbc2536c6907b5be42e727042307c46869355"
+    },
+    {
+      "date": "2026-04-11",
+      "count": 771,
+      "commit": "e69da46ee7dd28f7c2e4374259e518272f84a387"
+    },
+    {
+      "date": "2026-04-12",
+      "count": 774,
+      "commit": "794e5747b6de166736a7c07da118cf50c80b579e"
+    },
+    {
+      "date": "2026-04-13",
+      "count": 780,
+      "commit": "f8299ccc672e1fd80444323413f214c6ba98d51b"
+    },
+    {
+      "date": "2026-04-14",
+      "count": 776,
+      "commit": "def570268e4272edb70ff5225d2c78004c13da5a"
+    },
+    {
+      "date": "2026-04-15",
+      "count": 776,
+      "commit": "7f05aa6ab9199a257ea43846df2326fb6a8e1ecf"
+    },
+    {
+      "date": "2026-04-16",
+      "count": 790,
+      "commit": "30081c8c98c3611e9c2836c2663a2356baeb8338"
+    },
+    {
+      "date": "2026-04-17",
+      "count": 787,
+      "commit": "7c57ed459f8ac2e56b39b850dbfd8397aa82e984"
+    },
+    {
+      "date": "2026-04-18",
+      "count": 771,
+      "commit": "a5b6663045b885a84a753683126a40e331ac195b"
+    },
+    {
+      "date": "2026-04-19",
+      "count": 788,
+      "commit": "d8cdc0544e43fed0167ee3a61fa5634e0ad31f0f"
+    },
+    {
+      "date": "2026-04-20",
+      "count": 782,
+      "commit": "52f3548d94f1217dc7edf9e5621260162ac4fe02"
+    },
+    {
+      "date": "2026-04-21",
+      "count": 792,
+      "commit": "1fce704363d404ca4960c8519d0baa5f20ab94bb"
+    },
+    {
+      "date": "2026-04-22",
+      "count": 791,
+      "commit": "93dd472f0574273c60817cd3a2bfee075f586bcf"
+    },
+    {
+      "date": "2026-04-23",
+      "count": 790,
+      "commit": "624149d3b24c2c95f30db54a6042427251fe02e5"
+    },
+    {
+      "date": "2026-04-24",
+      "count": 797,
+      "commit": "206c2b3d85f454d50740f407c15899a244c7cd5d"
+    },
+    {
+      "date": "2026-04-25",
+      "count": 776,
+      "commit": "0e8730298da419b71415fdf286b9480c7cf48d83"
+    },
+    {
+      "date": "2026-04-26",
+      "count": 792,
+      "commit": "93cdff6821cdd1bea7e5d76563f64d83536297d2"
+    },
+    {
+      "date": "2026-04-27",
+      "count": 787,
+      "commit": "01789f3b59777aa6c136cb9f1dcee5b4cc7f1507"
+    },
+    {
+      "date": "2026-04-28",
+      "count": 781,
+      "commit": "a40a3ebb7e1eb6bdc872f6427cffce0447a46ddb"
+    },
+    {
+      "date": "2026-04-29",
+      "count": 786,
+      "commit": "1622eaef99c1e956a85e4f49847f945cd56e3e68"
+    },
+    {
+      "date": "2026-04-30",
+      "count": 785,
+      "commit": "4941fc3a55cc2c8129a7772c779d67082f8de258"
+    },
+    {
+      "date": "2026-05-01",
+      "count": 766,
+      "commit": "b9f05d1d907606a8e97561bcda600b7f7a74c128"
+    },
+    {
+      "date": "2026-05-02",
+      "count": 782,
+      "commit": "fa8e0e5bee8352824726ee771a4737b1f8de1595"
+    },
+    {
+      "date": "2026-05-03",
+      "count": 771,
+      "commit": "a5edabbc5746f953c4243950d014bde564412722"
+    },
+    {
+      "date": "2026-05-04",
+      "count": 770,
+      "commit": "ffea54bf59e828485163d93e8971c4a240fc4193"
+    },
+    {
+      "date": "2026-05-05",
+      "count": 770,
+      "commit": "160a6f5d48472b98edfee30dba8c747c7689a961"
+    },
+    {
+      "date": "2026-05-06",
+      "count": 767,
+      "commit": "df028960e2075543fa95c606bb652d94e0c471d7"
+    },
+    {
+      "date": "2026-05-07",
+      "count": 771,
+      "commit": "d2151e09504b7dde728602f744efe88758b4c2d7"
+    },
+    {
+      "date": "2026-05-08",
+      "count": 767,
+      "commit": "44dd5313bfe5b7ae545fea97b9870c5a7a86b667"
+    },
+    {
+      "date": "2026-05-09",
+      "count": 756,
+      "commit": "4b7d51d7bc05b1864923a6c9b3d6c87ed5ade228"
+    },
+    {
+      "date": "2026-05-10",
+      "count": 763,
+      "commit": "b18fcd87ac009b5073e499f2e3ffa0bec053c35f"
+    },
+    {
+      "date": "2026-05-11",
+      "count": 762,
+      "commit": "3b2ded3e07ec61ab61717ab278ef25389e95ec8f"
+    },
+    {
+      "date": "2026-05-12",
+      "count": 768,
+      "commit": "135c6fb2098a324fbf1d460472d5b0a6498fa73f"
+    },
+    {
+      "date": "2026-05-13",
+      "count": 767,
+      "commit": "aa1ef7148291aa61caf864bc86bfb523fa286661"
+    },
+    {
+      "date": "2026-05-14",
+      "count": 774,
+      "commit": "94841ecc5ca49b68430d842d77db619603f10010"
+    },
+    {
+      "date": "2026-05-15",
+      "count": 765,
+      "commit": "5c8e9413f4fdc1743094ba35e1d4b63389683d5d"
+    },
+    {
+      "date": "2026-05-16",
+      "count": 779,
+      "commit": "7889a0e96d13343dee531bfef6d01c41f2dd49fb"
+    },
+    {
+      "date": "2026-05-17",
+      "count": 764,
+      "commit": "9d224e22b0d6099cb418a7f50051e963228f1424"
+    },
+    {
+      "date": "2026-05-18",
+      "count": 775,
+      "commit": "107d7a7c9cf9bc682d4fbeb1202e31a2ae391d2d"
+    },
+    {
+      "date": "2026-05-19",
+      "count": 787,
+      "commit": "64cc205d6d7c73773a5bddc0efb8ba0b927abb6a"
+    },
+    {
+      "date": "2026-05-20",
+      "count": 805,
+      "commit": "17a7a0a7b9d753f5256270e5a0f254cfa7f08f95"
+    },
+    {
+      "date": "2026-05-21",
+      "count": 802,
+      "commit": "d70a971586bd5245a64bc40c09d23f1c2527cbe8"
+    },
+    {
+      "date": "2026-05-22",
+      "count": 821,
+      "commit": "5cb8594571e797dc78b2935f5833e4480caf7ab3"
+    },
+    {
+      "date": "2026-05-23",
+      "count": 799,
+      "commit": "a93956a165228a8ac2bef2a8d0b4c23d9210c0b6"
+    },
+    {
+      "date": "2026-05-24",
+      "count": 804,
+      "commit": "1e28dfcbd6c981fec97489cbd0589669a4708ef2"
+    },
+    {
+      "date": "2026-05-25",
+      "count": 813,
+      "commit": "48a297036a174530bbbe4130ae4fef1433f5f784"
+    },
+    {
+      "date": "2026-05-26",
+      "count": 787,
+      "commit": "1228a286e5bd3b437fdd065adfa44d094fac93db"
+    },
+    {
+      "date": "2026-05-27",
+      "count": 812,
+      "commit": "e945f2e05721a02c49b25ecbcd01b97d71c3c4ae"
+    },
+    {
+      "date": "2026-05-28",
+      "count": 804,
+      "commit": "b8bef31a209aeeaa674b73fd10f16b4f583d13cd"
+    },
+    {
+      "date": "2026-05-29",
+      "count": 814,
+      "commit": "f270a909f34572fda7a9bd59aae953b5ce91258a"
+    },
+    {
+      "date": "2026-05-30",
+      "count": 919,
+      "commit": "4443fd5c736a77d0edc36b8d4afc555355aa0d9f"
+    },
+    {
+      "date": "2026-05-31",
+      "count": 966,
+      "commit": "6a49158974bab3cab902862d3b875089144eec14"
+    },
+    {
+      "date": "2026-06-01",
+      "count": 989,
+      "commit": "9d0f2327cd99366aec736f535fe47dcde37d7079"
+    },
+    {
+      "date": "2026-06-02",
+      "count": 980,
+      "commit": "16f4144cb78466835dfa39c75c33d73b21130ce4"
+    },
+    {
+      "date": "2026-06-03",
+      "count": 978,
+      "commit": "48689de66c6270ef1a67826cb96a5ba79c33ac8a"
+    },
+    {
+      "date": "2026-06-04",
+      "count": 981,
+      "commit": "266326172b89d711689990daf6186e30cdefed32"
+    },
+    {
+      "date": "2026-06-05",
+      "count": 978,
+      "commit": "90dcacc89cf766fc9870ef311f184f2e73902a2a"
+    },
+    {
+      "date": "2026-06-06",
+      "count": 980,
+      "commit": "17eccd69aa344534646a7c1f78e4f759386f3660"
+    },
+    {
+      "date": "2026-06-07",
+      "count": 981,
+      "commit": "fe2f0678f2f7b6ed2838fd56e0f7f14e241b09f2"
+    },
+    {
+      "date": "2026-06-08",
+      "count": 961,
+      "commit": "1acd1ea3d9d8f32acda30ef91a26bc3ca7600022"
+    },
+    {
+      "date": "2026-06-09",
+      "count": 962,
+      "commit": "1184a7b20eef09dad178ca10524ec8fcd81a3f5d"
+    }
+  ]
+}

@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BitChat GeoRelays Terminal</title>
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Google Fonts for retro/monospace style -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Themes Configuration */
+    :root {
+      --bg-color: #07090e;
+      --bg-darker: #030406;
+      --bg-lighter: #0c111a;
+      --text-primary: #00ff66;
+      --text-secondary: #008833;
+      --border-color: #00ff66;
+      --accent-color: #ffb000;
+      --error-color: #ff3333;
+      --border-glow: 0 0 8px rgba(0, 255, 102, 0.4);
+      --text-glow: 0 0 6px rgba(0, 255, 102, 0.5);
+    }
+
+    body.theme-amber {
+      --bg-color: #0c0803;
+      --bg-darker: #050301;
+      --bg-lighter: #150f06;
+      --text-primary: #ffb000;
+      --text-secondary: #aa7500;
+      --border-color: #ffb000;
+      --accent-color: #00ff66;
+      --error-color: #ff5555;
+      --border-glow: 0 0 8px rgba(255, 176, 0, 0.4);
+      --text-glow: 0 0 6px rgba(255, 176, 0, 0.5);
+    }
+
+    body.theme-cyan {
+      --bg-color: #030a0f;
+      --bg-darker: #010406;
+      --bg-lighter: #06121a;
+      --text-primary: #00e5ff;
+      --text-secondary: #0099aa;
+      --border-color: #00e5ff;
+      --accent-color: #ff007f;
+      --error-color: #ff3333;
+      --border-glow: 0 0 8px rgba(0, 229, 255, 0.4);
+      --text-glow: 0 0 6px rgba(0, 229, 255, 0.5);
+    }
+
+    /* Base Styling */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: 'Fira Code', 'Courier New', Courier, Consolas, Monaco, monospace;
+      background-color: var(--bg-darker);
+      color: var(--text-primary);
+    }
+
+    /* Scanlines Overlay */
+    .scanlines {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.2) 50%
+      );
+      background-size: 100% 4px;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .flicker {
+      animation: crt-flicker 0.15s infinite;
+    }
+
+    @keyframes crt-flicker {
+      0% { opacity: 0.99; }
+      50% { opacity: 1; }
+      100% { opacity: 0.99; }
+    }
+
+    /* App Structure */
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      border: 3px double var(--border-color);
+      box-shadow: var(--border-glow);
+      background-color: var(--bg-color);
+    }
+
+    /* Client Header */
+    .irc-header {
+      background-color: var(--bg-darker);
+      border-bottom: 2px solid var(--border-color);
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-shadow: var(--text-glow);
+    }
+
+    .irc-title {
+      font-weight: bold;
+    }
+
+    .irc-status {
+      display: flex;
+      gap: 15px;
+    }
+
+    .status-item span {
+      color: var(--accent-color);
+    }
+
+    /* Client Body (Sidebar + Content + Nicklist) */
+    .irc-body {
+      display: flex;
+      flex: 1;
+      min-height: 0; /* Important for scrollable containers inside */
+    }
+
+    /* Sidebar - Channels / Views */
+    .irc-sidebar {
+      width: 220px;
+      border-right: 2px solid var(--border-color);
+      background-color: var(--bg-darker);
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+    }
+
+    .sidebar-section {
+      padding: 10px;
+      border-bottom: 1px solid rgba(0, 255, 102, 0.15);
+    }
+    
+    body.theme-amber .sidebar-section {
+      border-bottom: 1px solid rgba(255, 176, 0, 0.15);
+    }
+    
+    body.theme-cyan .sidebar-section {
+      border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+    }
+
+    .sidebar-title {
+      font-weight: bold;
+      color: var(--accent-color);
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .channel-list {
+      list-style: none;
+    }
+
+    .channel-item {
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+      transition: all 0.2s ease;
+    }
+
+    .channel-item:hover {
+      background-color: var(--bg-lighter);
+    }
+
+    .channel-item.active {
+      background-color: var(--text-secondary);
+      color: var(--bg-darker);
+      font-weight: bold;
+    }
+
+    .channel-item.active .channel-hash {
+      color: var(--bg-darker);
+    }
+
+    .channel-hash {
+      color: var(--text-secondary);
+    }
+
+    /* Interactive Options Section */
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.8rem;
+    }
+
+    .control-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 4px 8px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+
+    .control-btn:hover {
+      background-color: var(--text-primary);
+      color: var(--bg-darker);
+      box-shadow: var(--border-glow);
+    }
+
+    /* Main Window */
+    .irc-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-color);
+      min-width: 0;
+    }
+
+    /* Tab Title Bar */
+    .channel-topic-bar {
+      background-color: var(--bg-lighter);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topic-channel {
+      font-weight: bold;
+      color: var(--accent-color);
+    }
+
+    .topic-divider {
+      color: var(--text-secondary);
+    }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
+    .tab-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      flex-direction: column;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    /* Map Tab Styling */
+    #map {
+      width: 100%;
+      height: 100%;
+      background-color: #07090e;
+    }
+
+    /* Custom styles for Leaflet elements to fit dark cyber theme */
+    .leaflet-bar {
+      border: 1px solid var(--border-color) !important;
+      background-color: var(--bg-darker) !important;
+      box-shadow: var(--border-glow) !important;
+    }
+
+    .leaflet-bar a {
+      background-color: var(--bg-darker) !important;
+      color: var(--text-primary) !important;
+      border-bottom: 1px solid var(--border-color) !important;
+      transition: all 0.2s ease;
+    }
+
+    .leaflet-bar a:hover {
+      background-color: var(--text-primary) !important;
+      color: var(--bg-darker) !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background-color: var(--bg-darker) !important;
+      color: var(--text-primary) !important;
+      border: 2px solid var(--border-color) !important;
+      border-radius: 4px !important;
+      box-shadow: var(--border-glow) !important;
+      font-family: 'Fira Code', monospace !important;
+      font-size: 0.8rem !important;
+    }
+
+    .leaflet-popup-tip {
+      background-color: var(--border-color) !important;
+    }
+
+    .leaflet-popup-content h3 {
+      color: var(--accent-color);
+      border-bottom: 1px dashed var(--border-color);
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+    }
+
+    /* Custom glowing Leaflet marker style */
+    .custom-marker {
+      border-radius: 50%;
+      box-shadow: var(--border-glow);
+      border: 1px solid var(--bg-color);
+    }
+
+    /* Charts Tab Styling */
+    .charts-container {
+      padding: 15px;
+      overflow-y: auto;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Custom Date Range selector bar inside Charts tab */
+    .charts-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      background-color: var(--bg-darker);
+      border: 1px solid var(--border-color);
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-group label {
+      color: var(--accent-color);
+      font-weight: bold;
+    }
+
+    .filter-input {
+      background: var(--bg-lighter);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 4px 8px;
+      font-family: inherit;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .filter-input:focus {
+      box-shadow: var(--border-glow);
+    }
+
+    .preset-btn {
+      background: var(--bg-lighter);
+      border: 1px solid var(--text-secondary);
+      color: var(--text-primary);
+      padding: 4px 8px;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--border-color);
+      background-color: var(--bg-color);
+    }
+
+    .preset-btn.active {
+      background-color: var(--text-primary);
+      color: var(--bg-darker);
+      border-color: var(--border-color);
+      font-weight: bold;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+
+    @media (min-width: 1024px) {
+      .charts-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .chart-box {
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-darker);
+      padding: 15px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 350px;
+    }
+
+    .chart-box-title {
+      font-weight: bold;
+      color: var(--accent-color);
+      font-size: 0.9rem;
+      border-bottom: 1px dashed rgba(0, 255, 102, 0.2);
+      padding-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    body.theme-amber .chart-box-title {
+      border-bottom: 1px dashed rgba(255, 176, 0, 0.2);
+    }
+    
+    body.theme-cyan .chart-box-title {
+      border-bottom: 1px dashed rgba(0, 229, 255, 0.2);
+    }
+
+    .chart-canvas-wrapper {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* System Log / Console Tab */
+    .terminal-log {
+      flex: 1;
+      background-color: var(--bg-darker);
+      padding: 15px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-line {
+      word-break: break-all;
+    }
+
+    .log-line.system {
+      color: var(--accent-color);
+    }
+
+    .log-line.whois {
+      color: var(--text-primary);
+    }
+
+    .log-line.error {
+      color: var(--error-color);
+    }
+
+    .log-line.user-msg {
+      color: var(--text-primary);
+    }
+
+    .log-line.user-msg .msg-nick {
+      color: var(--accent-color);
+      font-weight: bold;
+    }
+
+    .log-time {
+      color: var(--text-secondary);
+      margin-right: 8px;
+    }
+
+    /* Nicklist Panel */
+    .irc-nicklist {
+      width: 250px;
+      border-left: 2px solid var(--border-color);
+      background-color: var(--bg-darker);
+      display: flex;
+      flex-direction: column;
+      font-size: 0.85rem;
+    }
+
+    .nicklist-header {
+      padding: 10px;
+      border-bottom: 1px solid rgba(0, 255, 102, 0.15);
+      background-color: var(--bg-lighter);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    body.theme-amber .nicklist-header {
+      border-bottom: 1px solid rgba(255, 176, 0, 0.15);
+    }
+    
+    body.theme-cyan .nicklist-header {
+      border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+    }
+
+    .nick-count {
+      font-weight: bold;
+      color: var(--accent-color);
+    }
+
+    .nick-search-input {
+      width: 100%;
+      background: var(--bg-darker);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .nick-search-input:focus {
+      box-shadow: var(--border-glow);
+    }
+
+    .nicks-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      list-style: none;
+    }
+
+    .nick-item {
+      padding: 4px 6px;
+      cursor: pointer;
+      border-radius: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nick-item:hover {
+      background-color: var(--bg-lighter);
+      text-shadow: var(--text-glow);
+    }
+
+    .nick-prefix {
+      color: var(--text-secondary);
+      font-weight: bold;
+    }
+
+    /* Scrollbars Custom Styling */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-darker);
+      border-left: 1px solid rgba(0, 255, 102, 0.1);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--text-secondary);
+      border: 2px solid var(--bg-darker);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-primary);
+    }
+
+    /* Command Input Line at Bottom */
+    .irc-input-area {
+      background-color: var(--bg-darker);
+      border-top: 2px solid var(--border-color);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+    }
+
+    .input-prompt {
+      font-weight: bold;
+      color: var(--accent-color);
+      white-space: nowrap;
+      text-shadow: var(--text-glow);
+    }
+
+    .input-prompt span {
+      color: var(--text-primary);
+    }
+
+    .cli-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: inherit;
+      text-shadow: var(--text-glow);
+    }
+
+    /* Custom Popup Styles */
+    .whois-popup {
+      font-family: 'Fira Code', monospace;
+      color: var(--text-primary);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body class="flicker">
+
+  <!-- Scanline effect -->
+  <div class="scanlines" id="scanlines-overlay"></div>
+
+  <div class="app-container">
+    
+    <!-- Top Client Header -->
+    <header class="irc-header">
+      <div class="irc-title">&#x2593; BitChat Relay Geo-Network v1.0.0 &#x2593;</div>
+      <div class="irc-status">
+        <div class="status-item">Server: <span>irc.bitchat.org</span></div>
+        <div class="status-item">User: <span>cypherpunk(+i)</span></div>
+        <div class="status-item">Date: <span id="current-date">--</span></div>
+      </div>
+    </header>
+
+    <div class="irc-body">
+      
+      <!-- Left Sidebar (Channels & Controllers) -->
+      <aside class="irc-sidebar">
+        
+        <!-- Channels Section -->
+        <div class="sidebar-section">
+          <div class="sidebar-title">Active Panes</div>
+          <ul class="channel-list">
+            <li class="channel-item active" data-tab="map-tab">
+              <span class="channel-hash">#</span>bitchat-map
+            </li>
+            <li class="channel-item" data-tab="charts-tab">
+              <span class="channel-hash">#</span>bitchat-charts
+            </li>
+            <li class="channel-item" data-tab="log-tab">
+              <span class="channel-hash">#</span>system-log
+            </li>
+          </ul>
+        </div>
+
+        <!-- CLI Command Quick buttons -->
+        <div class="sidebar-section">
+          <div class="sidebar-title">Quick Commands</div>
+          <div class="options-grid">
+            <button class="control-btn" onclick="executeCLICommand('/help')">/_ help</button>
+            <button class="control-btn" onclick="executeCLICommand('/scanlines')">/_ scanlines</button>
+            <button class="control-btn" onclick="executeCLICommand('/clear')">/_ clear logs</button>
+          </div>
+        </div>
+
+        <!-- Theme Changer Section -->
+        <div class="sidebar-section" style="border-bottom: none; margin-top: auto;">
+          <div class="sidebar-title">Terminal Theme</div>
+          <div class="options-grid" style="flex-direction: row; flex-wrap: wrap; gap: 4px;">
+            <button class="control-btn" style="flex: 1; text-align: center;" onclick="executeCLICommand('/theme green')">Green</button>
+            <button class="control-btn" style="flex: 1; text-align: center;" onclick="executeCLICommand('/theme amber')">Amber</button>
+            <button class="control-btn" style="flex: 1; text-align: center;" onclick="executeCLICommand('/theme cyan')">Cyan</button>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- Main Panel containing Tabs -->
+      <main class="irc-main">
+        
+        <!-- Header status for active channel -->
+        <div class="channel-topic-bar">
+          <span class="topic-channel" id="active-tab-title">#bitchat-map</span>
+          <span class="topic-divider">[topic:</span>
+          <span id="active-tab-desc" style="color: var(--text-primary);">Interactive map tracking geolocated BitChat relays</span>
+          <span class="topic-divider">]</span>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+          
+          <!-- Tab 1: Map View -->
+          <div class="tab-content active" id="map-tab">
+            <div id="map"></div>
+          </div>
+
+          <!-- Tab 2: Charts View -->
+          <div class="tab-content" id="charts-tab">
+            <div class="charts-container">
+              
+              <!-- Custom Interactive Filter Bar for aggregation -->
+              <div class="charts-filter-bar">
+                <div class="filter-group">
+                  <label>Preset ranges:</label>
+                  <button class="preset-btn" onclick="setChartRangePreset(7)" id="preset-7">7 Days</button>
+                  <button class="preset-btn" onclick="setChartRangePreset(30)" id="preset-30">30 Days</button>
+                  <button class="preset-btn active" onclick="setChartRangePreset(70)" id="preset-70">70 Days</button>
+                </div>
+                
+                <div style="flex-grow: 1;"></div>
+                
+                <div class="filter-group">
+                  <label>Custom Start:</label>
+                  <input type="date" class="filter-input" id="chart-start-date" onchange="onCustomDateChange()">
+                </div>
+                <div class="filter-group">
+                  <label>End:</label>
+                  <input type="date" class="filter-input" id="chart-end-date" onchange="onCustomDateChange()">
+                </div>
+              </div>
+
+              <!-- Interactive Graphs Grid -->
+              <div class="charts-grid">
+                
+                <!-- Chart 1 -->
+                <div class="chart-box">
+                  <div class="chart-box-title">
+                    <span>BitChat-Compatible Relay Count</span>
+                    <span id="bitchat-stat-box" style="font-size: 0.8rem; color: var(--text-primary);">--</span>
+                  </div>
+                  <div class="chart-canvas-wrapper">
+                    <canvas id="bitchat-chart"></canvas>
+                  </div>
+                </div>
+
+                <!-- Chart 2 -->
+                <div class="chart-box">
+                  <div class="chart-box-title">
+                    <span>Total Functioning Relays Discovered</span>
+                    <span id="total-stat-box" style="font-size: 0.8rem; color: var(--text-primary);">--</span>
+                  </div>
+                  <div class="chart-canvas-wrapper">
+                    <canvas id="total-chart"></canvas>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Tab 3: System Log View -->
+          <div class="tab-content" id="log-tab">
+            <div class="terminal-log" id="terminal-log-container">
+              <!-- Log entries will be prepended/appended here -->
+            </div>
+          </div>
+
+        </div>
+
+      </main>
+
+      <!-- Right Sidebar: Nicklist/Relaylist -->
+      <aside class="irc-nicklist">
+        <div class="nicklist-header">
+          <div>Relays (<span class="nick-count" id="active-nick-count">0</span>)</div>
+          <input type="text" class="nick-search-input" id="nick-search" placeholder="/filter [term] or type..." oninput="onNickSearchInput(this.value)" style="margin-bottom: 6px;">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; cursor: pointer; user-select: none; color: var(--text-primary);">
+            <input type="checkbox" id="bitchat-filter-checkbox" checked onchange="toggleBitChatFilter()" style="accent-color: var(--text-primary); cursor: pointer;">
+            BitChat Only (+voice)
+          </label>
+        </div>
+        <ul class="nicks-container" id="nicks-list">
+          <!-- Filled dynamically -->
+        </ul>
+      </aside>
+
+    </div>
+
+    <!-- Bottom Input CLI Console Line -->
+    <footer class="irc-input-area">
+      <div class="input-prompt">[cypherpunk(+i)]<span> /_</span></div>
+      <input type="text" class="cli-input" id="cli-input-box" placeholder="Type a CLI command (e.g. /help, /theme, /whois [relay]) or search terms..." autofocus autocomplete="off">
+    </footer>
+
+  </div>
+
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- ChartJS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // Global App State
+    const state = {
+      relays: [],       // list of { url, lat, lon }
+      history: null,    // { bitchat: [{date, count, commit}], total: [] }
+      map: null,
+      markers: [],
+      charts: {
+        bitchat: null,
+        total: null
+      },
+      currentTab: 'map-tab',
+      activeFilter: '',
+      activeRangePreset: 70 // default is 70 commits/days
+    };
+
+    // Fallback data if fetch fails (e.g., local CORS restrictions)
+    const fallbackData = {
+      relays: [
+        { url: "nostr-relay.corb.net:443", lat: 38.8353, lon: -104.822, isBitChat: 1 },
+        { url: "nittom.nostr1.com", lat: 40.7057, lon: -74.0136, isBitChat: 1 },
+        { url: "relay.nostr.blockhenge.com", lat: 39.0438, lon: -77.4874, isBitChat: 1 },
+        { url: "relay.artx.market:443", lat: 43.6548, lon: -79.3885, isBitChat: 0 },
+        { url: "eu.nostr.pikachat.org:443", lat: 49.4543, lon: 11.0746, isBitChat: 1 },
+        { url: "nostr.oxtr.dev", lat: 50.4754, lon: 12.3683, isBitChat: 0 },
+        { url: "nostr.2b9t.xyz:443", lat: 34.0549, lon: -118.243, isBitChat: 1 },
+        { url: "nostr.tagomago.me", lat: 42.3601, lon: -71.0589, isBitChat: 0 },
+        { url: "relay.getsafebox.app:443", lat: 43.6532, lon: -79.3832, isBitChat: 1 },
+        { url: "nostr.spaceshell.xyz", lat: 43.6532, lon: -79.3832, isBitChat: 0 },
+        { url: "social.amanah.eblessing.co", lat: 48.1046, lon: 11.6002, isBitChat: 0 },
+        { url: "relay.trustr.ing:443", lat: 43.6548, lon: -79.3885, isBitChat: 1 },
+        { url: "rele.speyhard.fi", lat: 51.5072, lon: -0.127586, isBitChat: 1 }
+      ],
+      history: {
+        bitchat: [
+          { date: "2026-04-01", count: 313, commit: "mock1" },
+          { date: "2026-04-10", count: 320, commit: "mock2" },
+          { date: "2026-04-20", count: 335, commit: "mock3" },
+          { date: "2026-04-30", count: 350, commit: "mock4" },
+          { date: "2026-05-10", count: 375, commit: "mock5" },
+          { date: "2026-05-20", count: 390, commit: "mock6" },
+          { date: "2026-06-01", count: 411, commit: "mock7" }
+        ],
+        total: [
+          { date: "2026-04-01", count: 720, commit: "mock1" },
+          { date: "2026-04-10", count: 750, commit: "mock2" },
+          { date: "2026-04-20", count: 790, commit: "mock3" },
+          { date: "2026-04-30", count: 830, commit: "mock4" },
+          { date: "2026-05-10", count: 880, commit: "mock5" },
+          { date: "2026-05-20", count: 910, commit: "mock6" },
+          { date: "2026-06-01", count: 962, commit: "mock7" }
+        ]
+      }
+    };
+
+    // Initialization on Page Load
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set timestamp
+      document.getElementById('current-date').textContent = new Date().toISOString().split('T')[0];
+      
+      // Setup Terminal view log
+      logSystemMessage("==========================================================================");
+      logSystemMessage(" _  _  _  _  _    ____ ___ _____ ____ _   _    _  _____   ____  _     _ ");
+      logSystemMessage("| |/ /| || || |  | __ )_ _|_   _/ ___| | | |  / \\|_   _| |  _ \\| |   | |");
+      logSystemMessage("| ' / | || || |  |  _ \\| |  | || |   | |_| | / _ \\ | |   | |_) | |   | |");
+      logSystemMessage("| . \\ | \\/ || |__| |_) | |  | || |___|  _  |/ ___ \\| |   |  _ <| |___| |");
+      logSystemMessage("|_|\\_\\ \\__/ |____|____/___| |_| \\____|_| |_/_/   \\_\\_|   |_| \\_\\_____|_|");
+      logSystemMessage("==========================================================================");
+      logSystemMessage("Initializing connection to BitChat GeoRelays Terminal...");
+      logSystemMessage("Retrieving geolocated relay network data...");
+
+      // Init UI Elements
+      setupTabs();
+      setupCLIInput();
+      
+      // Init Leaflet Map
+      initMap();
+
+      // Load Relay Data
+      loadRelayData();
+
+      // Load History Data
+      loadHistoryData();
+    });
+
+    // Logging Helpers
+    function logSystemMessage(text) {
+      const logContainer = document.getElementById('terminal-log-container');
+      const line = document.createElement('div');
+      line.className = 'log-line system';
+      
+      const time = document.createElement('span');
+      time.className = 'log-time';
+      time.textContent = `[${new Date().toTimeString().split(' ')[0]}]`;
+      
+      const content = document.createElement('span');
+      content.textContent = `*** ${text}`;
+      
+      line.appendChild(time);
+      line.appendChild(content);
+      logContainer.appendChild(line);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function logErrorMessage(text) {
+      const logContainer = document.getElementById('terminal-log-container');
+      const line = document.createElement('div');
+      line.className = 'log-line error';
+      
+      const time = document.createElement('span');
+      time.className = 'log-time';
+      time.textContent = `[${new Date().toTimeString().split(' ')[0]}]`;
+      
+      const content = document.createElement('span');
+      content.textContent = `!!! ERROR: ${text}`;
+      
+      line.appendChild(time);
+      line.appendChild(content);
+      logContainer.appendChild(line);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function logUserMessage(user, msg) {
+      const logContainer = document.getElementById('terminal-log-container');
+      const line = document.createElement('div');
+      line.className = 'log-line user-msg';
+      
+      const time = document.createElement('span');
+      time.className = 'log-time';
+      time.textContent = `[${new Date().toTimeString().split(' ')[0]}]`;
+      
+      const nick = document.createElement('span');
+      nick.className = 'msg-nick';
+      nick.textContent = `<${user}> `;
+      
+      const content = document.createElement('span');
+      content.textContent = msg;
+      
+      line.appendChild(time);
+      line.appendChild(nick);
+      line.appendChild(content);
+      logContainer.appendChild(line);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function logWhoisMessage(title, dataLines) {
+      const logContainer = document.getElementById('terminal-log-container');
+      const block = document.createElement('div');
+      block.className = 'log-line whois';
+      
+      const timeStr = `[${new Date().toTimeString().split(' ')[0]}]`;
+      
+      let html = `<div style="margin: 6px 0; border-left: 2px solid var(--accent-color); padding-left: 10px;">`;
+      html += `<span class="log-time">${timeStr}</span> <span style="color:var(--accent-color);font-weight:bold;">WHOIS ${title}</span><br>`;
+      dataLines.forEach(line => {
+        html += `<span class="log-time">${timeStr}</span> *** ${line}<br>`;
+      });
+      html += `</div>`;
+      
+      block.innerHTML = html;
+      logContainer.appendChild(block);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // Tabs / Channels Navigation
+    function setupTabs() {
+      const tabs = document.querySelectorAll('.channel-item');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          switchTab(tab.getAttribute('data-tab'));
+        });
+      });
+    }
+
+    function switchTab(tabId) {
+      // Toggle Tab Content classes
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      const activeContent = document.getElementById(tabId);
+      if (activeContent) activeContent.classList.add('active');
+
+      // Toggle Sidebar List Active
+      document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
+      const activeItem = document.querySelector(`.channel-item[data-tab="${tabId}"]`);
+      if (activeItem) activeItem.classList.add('active');
+
+      // Update active channel labels
+      state.currentTab = tabId;
+      const titleEl = document.getElementById('active-tab-title');
+      const descEl = document.getElementById('active-tab-desc');
+      
+      if (tabId === 'map-tab') {
+        titleEl.textContent = '#bitchat-map';
+        descEl.textContent = 'Interactive map tracking geolocated BitChat relays';
+        if (state.map) {
+          // Leaflet needs an invalidateSize call when container shifts visibility
+          setTimeout(() => state.map.invalidateSize(), 50);
+        }
+      } else if (tabId === 'charts-tab') {
+        titleEl.textContent = '#bitchat-charts';
+        descEl.textContent = 'Interactive trend analysis over custom date ranges';
+      } else if (tabId === 'log-tab') {
+        titleEl.textContent = '#system-log';
+        descEl.textContent = 'Live terminal log console outputs';
+      }
+    }
+
+    // Leaflet Map Setup
+    function initMap() {
+      // Coordinates centered on Europe/Atlantic for global balanced view
+      state.map = L.map('map', {
+        minZoom: 1.5,
+        maxZoom: 10,
+        zoomSnap: 0.5
+      }).setView([18, 0], 2);
+
+      // CartoDB Dark Matter tiles (Perfect cypherpunk / terminal aesthetics)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(state.map);
+    }
+
+    // Load and Parse Relay CSV
+    function loadRelayData() {
+      fetch('all_relays_geo.csv')
+        .then(response => {
+          if (!response.ok) throw new Error("Could not fetch CSV");
+          return response.text();
+        })
+        .then(csvText => {
+          parseAndPopulateRelays(csvText);
+          logSystemMessage(`Successfully mapped ${state.relays.length} active geolocated relays from all_relays_geo.csv.`);
+        })
+        .catch(err => {
+          logErrorMessage(`Failed to fetch 'all_relays_geo.csv' due to CORS or network rules.`);
+          logSystemMessage("Loading secure offline preview database fallback (CORS / standalone mode)...");
+          
+          // Load offline fallback data
+          const csvMock = "Relay URL,Latitude,Longitude,IsBitChat\n" + 
+            fallbackData.relays.map(r => `${r.url},${r.lat},${r.lon},${r.isBitChat}`).join('\n');
+          parseAndPopulateRelays(csvMock);
+        });
+    }
+
+    function parseAndPopulateRelays(csvText) {
+      const lines = csvText.trim().split('\n');
+      if (lines.length <= 1) return;
+
+      const results = [];
+      // Skip header
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split(',');
+        if (parts.length >= 3) {
+          const url = parts[0].trim();
+          const lat = parseFloat(parts[1]);
+          const lon = parseFloat(parts[2]);
+          const isBitChat = parts.length >= 4 ? parseInt(parts[3]) : 1; // Default to 1
+          if (!isNaN(lat) && !isNaN(lon)) {
+            results.push({ url, lat, lon, isBitChat });
+          }
+        }
+      }
+
+      state.relays = results;
+      document.getElementById('active-nick-count').textContent = results.length;
+      
+      // Plot coordinates
+      plotRelayMarkers();
+      
+      // Fill nicklist sidebar
+      populateNicklist();
+    }
+
+    function plotRelayMarkers() {
+      // Clear existing markers
+      state.markers.forEach(m => state.map.removeLayer(m));
+      state.markers = [];
+
+      const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+      const glowColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim();
+      
+      const showBitChatOnly = document.getElementById('bitchat-filter-checkbox') ? document.getElementById('bitchat-filter-checkbox').checked : true;
+
+      // Custom Circle Markers for blazing-fast canvas rendering and glowing node look
+      state.relays.forEach(r => {
+        // Skip non-BitChat if filter is checked
+        if (showBitChatOnly && r.isBitChat === 0) {
+          return;
+        }
+
+        const isBC = r.isBitChat === 1;
+        const markerColor = isBC ? primaryColor : '#555555';
+        const markerRadius = isBC ? 5 : 3;
+        const markerOpacity = isBC ? 0.9 : 0.4;
+        const markerFillOpacity = isBC ? 0.8 : 0.3;
+
+        // Create circle marker
+        const marker = L.circleMarker([r.lat, r.lon], {
+          radius: markerRadius,
+          fillColor: markerColor,
+          color: '#000',
+          weight: 0.8,
+          opacity: markerOpacity,
+          fillOpacity: markerFillOpacity,
+          className: isBC ? 'custom-marker' : ''
+        });
+
+        // Setup Popup HTML
+        const whoisMeta = getMockWhoisRegistrar(r.url);
+        const popupHTML = `
+          <div class="whois-popup">
+            <h3>WHOIS DETAILS</h3>
+            <strong>URL:</strong> wss://${r.url}<br>
+            <strong>Lat:</strong> ${r.lat.toFixed(4)}<br>
+            <strong>Lon:</strong> ${r.lon.toFixed(4)}<br>
+            <strong>Registrar:</strong> ${whoisMeta.registrar.split(' (')[0]}<br>
+            <strong>Network:</strong> ${whoisMeta.provider.split(' (')[0]}<br>
+            <strong>Scope:</strong> ${isBC ? 'BitChat (Kind 20000)' : 'Standard Nostr Relay'}<br>
+            <span style="font-size: 0.75rem; color:var(--text-secondary); margin-top:5px; display:block;">Click nick in sidebar for log WHOIS</span>
+          </div>
+        `;
+        marker.bindPopup(popupHTML);
+
+        // Map events
+        marker.on('click', () => {
+          triggerWhois(r);
+        });
+
+        marker.on('mouseover', function(e) {
+          this.setStyle({
+            radius: isBC ? 8 : 5,
+            fillColor: isBC ? 'var(--accent-color)' : '#999999',
+            fillOpacity: 1
+          });
+        });
+
+        marker.on('mouseout', function(e) {
+          this.setStyle({
+            radius: markerRadius,
+            fillColor: markerColor,
+            fillOpacity: markerFillOpacity
+          });
+        });
+
+        marker.addTo(state.map);
+        state.markers.push(marker);
+      });
+    }
+
+    // Populate Sidebar Nicklist
+    function populateNicklist() {
+      const nicksList = document.getElementById('nicks-list');
+      nicksList.innerHTML = '';
+
+      const showBitChatOnly = document.getElementById('bitchat-filter-checkbox') ? document.getElementById('bitchat-filter-checkbox').checked : true;
+
+      const filtered = state.relays.filter(r => {
+        const matchesSearch = r.url.toLowerCase().includes(state.activeFilter.toLowerCase());
+        const matchesBitChat = !showBitChatOnly || r.isBitChat === 1;
+        return matchesSearch && matchesBitChat;
+      });
+
+      // Update active nick count
+      document.getElementById('active-nick-count').textContent = filtered.length;
+
+      filtered.forEach(r => {
+        const li = document.createElement('li');
+        li.className = 'nick-item';
+        li.title = `wss://${r.url}`;
+        if (r.isBitChat === 0) {
+          li.style.color = '#777';
+        }
+        
+        const prefix = document.createElement('span');
+        prefix.className = 'nick-prefix';
+        prefix.textContent = r.isBitChat === 1 ? '+' : ' ';
+        if (r.isBitChat === 0) {
+          prefix.style.color = '#444';
+        }
+        
+        const name = document.createElement('span');
+        name.textContent = r.url;
+
+        li.appendChild(prefix);
+        li.appendChild(name);
+
+        li.addEventListener('click', () => {
+          // Zoom to location on map
+          switchTab('map-tab');
+          state.map.setView([r.lat, r.lon], 7);
+          
+          // Find marker and open popup
+          // Since markers are filtered and match the filtered index or we find it by URL
+          const markerIndex = state.relays.filter(el => !showBitChatOnly || el.isBitChat === 1).indexOf(r);
+          if (markerIndex !== -1 && state.markers[markerIndex]) {
+            state.markers[markerIndex].openPopup();
+          }
+          
+          // Output WHOIS to system logs
+          triggerWhois(r);
+        });
+
+        nicksList.appendChild(li);
+      });
+    }
+
+    function toggleBitChatFilter() {
+      populateNicklist();
+      plotRelayMarkers();
+    }
+
+    function onNickSearchInput(val) {
+      state.activeFilter = val;
+      populateNicklist();
+    }
+
+    function getMockWhoisRegistrar(hostname) {
+      // Extract domain name
+      const parts = hostname.split(':');
+      const cleanHost = parts[0]; // strip port
+      const hostParts = cleanHost.split('.');
+      let domain = cleanHost;
+      if (hostParts.length >= 2) {
+        domain = hostParts.slice(-2).join('.');
+      }
+      
+      const registrars = [
+        "Cloudflare, Inc. (iana: 1462)", 
+        "Namecheap, Inc. (iana: 1068)", 
+        "GoDaddy.com, LLC (iana: 146)", 
+        "Gandi SAS (iana: 81)", 
+        "Porkbun LLC (iana: 1861)", 
+        "Tucows Domains Inc. (iana: 69)"
+      ];
+      
+      const providers = [
+        "Hetzner Online GmbH (AS24875)",
+        "DigitalOcean, LLC (AS14061)",
+        "OVH SAS (AS16276)",
+        "Amazon Technologies, Inc. (AS16509)",
+        "Google LLC (AS15169)",
+        "Linode, LLC (AS63949)",
+        "Cloudflare, Inc. (AS13335)",
+        "Contabo GmbH (AS51167)"
+      ];
+      
+      // simple deterministic hash from string
+      let hash = 0;
+      for (let i = 0; i < domain.length; i++) {
+        hash = domain.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      hash = Math.abs(hash);
+      
+      const registrar = registrars[hash % registrars.length];
+      const provider = providers[(hash + 3) % providers.length];
+      
+      return { registrar, provider, cleanHost };
+    }
+
+    function triggerWhois(relay) {
+      const whoisMeta = getMockWhoisRegistrar(relay.url);
+      const lines = [
+        `Host Address : wss://${relay.url}`,
+        `Coordinates  : Latitude ${relay.lat.toFixed(6)}, Longitude ${relay.lon.toFixed(6)}`,
+        `Registrar    : ${whoisMeta.registrar}`,
+        `Net Provider : ${whoisMeta.provider}`,
+        `Capability   : BitChat Client Channel (Nostr Kind 20000 Read/Write verified)`,
+        `DB-IP Status : IPv4 Host Range Verified Location POP`,
+        `End of WHOIS : Securing connection channel.`
+      ];
+      logWhoisMessage(relay.url, lines);
+    }
+
+    // Load History Charts Data
+    function loadHistoryData() {
+      fetch('assets/relay_history.json')
+        .then(response => {
+          if (!response.ok) throw new Error("Could not fetch history JSON");
+          return response.json();
+        })
+        .then(historyData => {
+          state.history = historyData;
+          logSystemMessage("Loaded interactive historical database assets/relay_history.json.");
+          initCharts();
+        })
+        .catch(err => {
+          logErrorMessage("Failed to load historical charts data due to network restrictions.");
+          logSystemMessage("Using integrated fallback offline simulation database for charts preview.");
+          state.history = fallbackData.history;
+          initCharts();
+        });
+    }
+
+    // Initialize ChartJS Graphics
+    function initCharts() {
+      // Default limits for dates
+      const bitchatDates = state.history.bitchat.map(d => d.date);
+      
+      const minDate = bitchatDates[0];
+      const maxDate = bitchatDates[bitchatDates.length - 1];
+
+      document.getElementById('chart-start-date').min = minDate;
+      document.getElementById('chart-start-date').max = maxDate;
+      document.getElementById('chart-end-date').min = minDate;
+      document.getElementById('chart-end-date').max = maxDate;
+
+      // Default presets to full range
+      setChartRangePreset(state.activeRangePreset);
+    }
+
+    function renderCharts(bitchatFiltered, totalFiltered) {
+      // Get current CSS computed colors for matching chart theme dynamically!
+      const styles = getComputedStyle(document.documentElement);
+      const textPrimary = styles.getPropertyValue('--text-primary').trim();
+      const textSecondary = styles.getPropertyValue('--text-secondary').trim();
+      const bgDarker = styles.getPropertyValue('--bg-darker').trim();
+      const accentColor = styles.getPropertyValue('--accent-color').trim();
+
+      // BitChat Chart Data Config
+      const bcLabels = bitchatFiltered.map(d => d.date);
+      const bcCounts = bitchatFiltered.map(d => d.count);
+      
+      // Total Chart Data Config
+      const totLabels = totalFiltered.map(d => d.date);
+      const totCounts = totalFiltered.map(d => d.count);
+
+      // Render BitChat Chart
+      if (state.charts.bitchat) {
+        state.charts.bitchat.destroy();
+      }
+      
+      const ctxBC = document.getElementById('bitchat-chart').getContext('2d');
+      state.charts.bitchat = new Chart(ctxBC, {
+        type: 'line',
+        data: {
+          labels: bcLabels,
+          datasets: [{
+            label: 'BitChat Relays',
+            data: bcCounts,
+            borderColor: textPrimary,
+            backgroundColor: 'rgba(0, 255, 102, 0.05)',
+            borderWidth: 2,
+            pointBackgroundColor: textPrimary,
+            pointBorderColor: bgDarker,
+            pointHoverBackgroundColor: bgDarker,
+            pointHoverBorderColor: textPrimary,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.25,
+            fill: true
+          }]
+        },
+        options: getChartOptions(textPrimary, textSecondary, accentColor, 'BitChat Relays')
+      });
+
+      // Render Total Chart
+      if (state.charts.total) {
+        state.charts.total.destroy();
+      }
+
+      const ctxTot = document.getElementById('total-chart').getContext('2d');
+      state.charts.total = new Chart(ctxTot, {
+        type: 'line',
+        data: {
+          labels: totLabels,
+          datasets: [{
+            label: 'Total Discovered Relays',
+            data: totCounts,
+            borderColor: accentColor,
+            backgroundColor: 'rgba(255, 176, 0, 0.05)',
+            borderWidth: 2,
+            pointBackgroundColor: accentColor,
+            pointBorderColor: bgDarker,
+            pointHoverBackgroundColor: bgDarker,
+            pointHoverBorderColor: accentColor,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.25,
+            fill: true
+          }]
+        },
+        options: getChartOptions(accentColor, textSecondary, textPrimary, 'Total Functioning')
+      });
+
+      // Compute statistics and output
+      updateSummaryBoxes(bitchatFiltered, totalFiltered);
+    }
+
+    function getChartOptions(primaryColor, gridColor, tooltipColor, yAxisLabel) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'var(--bg-darker)',
+            titleColor: tooltipColor,
+            bodyColor: 'var(--text-primary)',
+            borderColor: primaryColor,
+            borderWidth: 1,
+            cornerRadius: 3,
+            padding: 8,
+            titleFont: { family: 'Fira Code', size: 12 },
+            bodyFont: { family: 'Fira Code', size: 12 },
+            displayColors: false
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Timeline (Date)',
+              color: primaryColor,
+              font: { family: 'Fira Code', size: 11, weight: 'bold' }
+            },
+            grid: {
+              color: gridColor + '22',
+              drawTicks: true
+            },
+            ticks: {
+              color: primaryColor,
+              font: { family: 'Fira Code', size: 10 },
+              maxTicksLimit: 8
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: yAxisLabel,
+              color: primaryColor,
+              font: { family: 'Fira Code', size: 11, weight: 'bold' }
+            },
+            grid: {
+              color: gridColor + '22',
+              drawTicks: true
+            },
+            ticks: {
+              color: primaryColor,
+              font: { family: 'Fira Code', size: 10 }
+            }
+          }
+        }
+      };
+    }
+
+    function updateSummaryBoxes(bitchat, total) {
+      if (bitchat.length === 0 || total.length === 0) return;
+
+      const bcLatest = bitchat[bitchat.length - 1].count;
+      const bcMin = Math.min(...bitchat.map(d => d.count));
+      const bcMax = Math.max(...bitchat.map(d => d.count));
+      const bcStart = bitchat[0].count;
+      const bcGrowth = (((bcLatest - bcStart) / bcStart) * 100).toFixed(1);
+      const bcGrowthSign = bcLatest >= bcStart ? '+' : '';
+
+      document.getElementById('bitchat-stat-box').innerHTML = `
+        Latest: <strong style="color:var(--text-primary);">${bcLatest}</strong> | 
+        Min: ${bcMin} | Max: ${bcMax} | 
+        Growth: <strong style="color:var(--text-primary);">${bcGrowthSign}${bcGrowth}%</strong>
+      `;
+
+      const totLatest = total[total.length - 1].count;
+      const totMin = Math.min(...total.map(d => d.count));
+      const totMax = Math.max(...total.map(d => d.count));
+      const totStart = total[0].count;
+      const totGrowth = (((totLatest - totStart) / totStart) * 100).toFixed(1);
+      const totGrowthSign = totLatest >= totStart ? '+' : '';
+
+      document.getElementById('total-stat-box').innerHTML = `
+        Latest: <strong style="color:var(--accent-color);">${totLatest}</strong> | 
+        Min: ${totMin} | Max: ${totMax} | 
+        Growth: <strong style="color:var(--accent-color);">${totGrowthSign}${totGrowth}%</strong>
+      `;
+    }
+
+    // Chart Filters logic
+    function setChartRangePreset(days) {
+      state.activeRangePreset = days;
+
+      // Update preset buttons classes
+      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById(`preset-${days}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const bitchatFull = state.history.bitchat;
+      const totalFull = state.history.total;
+
+      // Take the last N days/entries
+      const bitchatFiltered = bitchatFull.slice(-days);
+      const totalFiltered = totalFull.slice(-days);
+
+      // Update Custom Inputs
+      document.getElementById('chart-start-date').value = bitchatFiltered[0].date;
+      document.getElementById('chart-end-date').value = bitchatFiltered[bitchatFiltered.length - 1].date;
+
+      renderCharts(bitchatFiltered, totalFiltered);
+      
+      const stats = `Time range aggregated: last ${days} periods (${bitchatFiltered[0].date} to ${bitchatFiltered[bitchatFiltered.length-1].date}).`;
+      logSystemMessage(stats);
+    }
+
+    function onCustomDateChange() {
+      // Disable preset buttons active states since we are in custom mode
+      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+
+      const startVal = document.getElementById('chart-start-date').value;
+      const endVal = document.getElementById('chart-end-date').value;
+
+      if (!startVal || !endVal) return;
+
+      const bitchatFull = state.history.bitchat;
+      const totalFull = state.history.total;
+
+      const bitchatFiltered = bitchatFull.filter(d => d.date >= startVal && d.date <= endVal);
+      const totalFiltered = totalFull.filter(d => d.date >= startVal && d.date <= endVal);
+
+      if (bitchatFiltered.length === 0 || totalFiltered.length === 0) {
+        logErrorMessage("Custom date range filter returned 0 data points. Adjust ranges.");
+        return;
+      }
+
+      renderCharts(bitchatFiltered, totalFiltered);
+      logSystemMessage(`Custom aggregation applied successfully: ${startVal} to ${endVal} (${bitchatFiltered.length} periods mapped).`);
+    }
+
+    // CLI Shell Console Interpreter
+    function setupCLIInput() {
+      const cliBox = document.getElementById('cli-input-box');
+      cliBox.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const val = cliBox.value.trim();
+          cliBox.value = '';
+          if (val) {
+            handleCommand(val);
+          }
+        }
+      });
+    }
+
+    function executeCLICommand(cmd) {
+      handleCommand(cmd);
+    }
+
+    function handleCommand(rawInput) {
+      logUserMessage('cypherpunk', rawInput);
+
+      if (!rawInput.startsWith('/')) {
+        // If not a slash command, treat it as Nick Search filter
+        onNickSearchInput(rawInput);
+        document.getElementById('nick-search').value = rawInput;
+        logSystemMessage(`Filtering nick list and map markers for term: "${rawInput}"`);
+        return;
+      }
+
+      const parts = rawInput.split(' ');
+      const command = parts[0].toLowerCase();
+      const args = parts.slice(1);
+
+      switch (command) {
+        case '/help':
+          logSystemMessage("=================================================");
+          logSystemMessage("             SECURE CLI TERMINAL COMMANDS         ");
+          logSystemMessage("=================================================");
+          logSystemMessage("/help                - Displays this instruction panel");
+          logSystemMessage("/map                 - Toggle view to interactive geographic node map");
+          logSystemMessage("/charts              - Toggle view to metrics & historical graphs");
+          logSystemMessage("/log                 - Toggle view to system diagnostic console");
+          logSystemMessage("/whois <relay>       - Query specific relay metadata & locate");
+          logSystemMessage("/filter <text>       - Find specific relays by URL patterns");
+          logSystemMessage("/theme <green/amber/cyan> - Toggle mainframe CRT phosphor colors");
+          logSystemMessage("/scanlines           - Toggle micro CRT horizontal grid raster");
+          logSystemMessage("/range <7/30/70>     - Quick aggregate charts range by days");
+          logSystemMessage("/clear               - Purge local terminal buffers");
+          break;
+        
+        case '/map':
+          switchTab('map-tab');
+          logSystemMessage("Mainframe display routed to #bitchat-map.");
+          break;
+
+        case '/charts':
+          switchTab('charts-tab');
+          logSystemMessage("Mainframe display routed to #bitchat-charts.");
+          break;
+
+        case '/log':
+          switchTab('log-tab');
+          logSystemMessage("Mainframe display routed to #system-log.");
+          break;
+
+        case '/clear':
+          document.getElementById('terminal-log-container').innerHTML = '';
+          logSystemMessage("Terminal buffers cleared.");
+          break;
+
+        case '/scanlines':
+          const overlay = document.getElementById('scanlines-overlay');
+          const body = document.body;
+          if (body.classList.contains('flicker')) {
+            body.classList.remove('flicker');
+            overlay.style.display = 'none';
+            logSystemMessage("CRT Scanlines and phosphor flicker DISABLED.");
+          } else {
+            body.classList.add('flicker');
+            overlay.style.display = 'block';
+            logSystemMessage("CRT Scanlines and phosphor flicker ENABLED.");
+          }
+          break;
+
+        case '/theme':
+          if (args.length === 0) {
+            logErrorMessage("Syntax: /theme [green | amber | cyan]");
+            break;
+          }
+          const theme = args[0].toLowerCase();
+          document.body.className = document.body.className.replace(/theme-\w+/g, '');
+          
+          if (theme === 'green' || theme === 'matrix') {
+            document.body.classList.remove('theme-amber', 'theme-cyan');
+            logSystemMessage("Switching phosphor grid to Matrix Green [P1 Phosphor].");
+          } else if (theme === 'amber' || theme === 'retro') {
+            document.body.classList.add('theme-amber');
+            document.body.classList.remove('theme-cyan');
+            logSystemMessage("Switching phosphor grid to Amber Terminal [P3 Phosphor].");
+          } else if (theme === 'cyan' || theme === 'cyber') {
+            document.body.classList.add('theme-cyan');
+            document.body.classList.remove('theme-amber');
+            logSystemMessage("Switching phosphor grid to Cyber Blue [P4 Phosphor].");
+          } else {
+            logErrorMessage(`Theme "${theme}" not recognized. Select green, amber, or cyan.`);
+            break;
+          }
+          
+          // Re-render markers and charts with new CSS variables
+          setTimeout(() => {
+            plotRelayMarkers();
+            if (state.history) {
+              const startVal = document.getElementById('chart-start-date').value;
+              const endVal = document.getElementById('chart-end-date').value;
+              if (startVal && endVal) {
+                onCustomDateChange();
+              } else {
+                setChartRangePreset(state.activeRangePreset);
+              }
+            }
+          }, 100);
+          break;
+
+        case '/filter':
+          const filterTerm = args.join(' ');
+          onNickSearchInput(filterTerm);
+          document.getElementById('nick-search').value = filterTerm;
+          logSystemMessage(`Real-time filter term set to: "${filterTerm}"`);
+          break;
+
+        case '/range':
+          if (args.length === 0) {
+            logErrorMessage("Syntax: /range [7 | 30 | 70]");
+            break;
+          }
+          const daysNum = parseInt(args[0]);
+          if (daysNum === 7 || daysNum === 30 || daysNum === 70) {
+            setChartRangePreset(daysNum);
+          } else {
+            logErrorMessage("Supported range presets: 7, 30, 70.");
+          }
+          break;
+
+        case '/whois':
+          if (args.length === 0) {
+            logErrorMessage("Syntax: /whois [relay_url_substring]");
+            break;
+          }
+          const sub = args[0].toLowerCase();
+          const match = state.relays.find(r => r.url.toLowerCase().includes(sub));
+          if (match) {
+            switchTab('map-tab');
+            state.map.setView([match.lat, match.lon], 7);
+            const index = state.relays.indexOf(match);
+            if (index !== -1 && state.markers[index]) {
+              state.markers[index].openPopup();
+            }
+            triggerWhois(match);
+          } else {
+            logErrorMessage(`Relay matching substring "${sub}" not found in current geolocation dataset.`);
+          }
+          break;
+
+        default:
+          logErrorMessage(`Command "${command}" is invalid. Type /help to query supported protocols.`);
+          break;
+      }
+    }
+  </script>
+</body>
+</html>

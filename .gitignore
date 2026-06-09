@@ -29,3 +29,7 @@ ENV/
 # IDE files
 .idea/
 .vscode/
+
+# GeoIP Databases
+dbip-city-ipv4-num.csv
+dbip-city-ipv4-num.csv.gz
