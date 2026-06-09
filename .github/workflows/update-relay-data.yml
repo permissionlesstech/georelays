@@ -51,6 +51,7 @@ jobs:
     - name: Update relay geolocation data
       run: |
         cat relay_discovery_results.json | jq .functioning_relays[] | ./filter_bitchat_relays.sh | sed 's|^wss://||' | python3 relays_geo_lookup.py nostr_relays.csv
+        python3 scripts/geolocate_all_relays.py
     
     - name: Check for changes
       id: git-check
@@ -62,7 +63,7 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add relay_discovery_results.json nostr_relays.csv
+        git add relay_discovery_results.json nostr_relays.csv all_relays_geo.csv
         git commit -m "Automated update of relay data - $(date -u)"
         git push
       env:
@@ -75,4 +76,5 @@ jobs:
         path: |
           relay_discovery_results.json
           nostr_relays.csv
+          all_relays_geo.csv
         retention-days: 30

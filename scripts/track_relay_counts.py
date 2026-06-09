@@ -220,6 +220,35 @@ def main():
         'assets/total_relay_count_chart.png'
     )
     
+    # Save historical data to JSON for interactive graphs
+    history_json_path = 'assets/relay_history.json'
+    bitchat_serializable = []
+    for entry in bitchat_data:
+        bitchat_serializable.append({
+            'date': entry['date'].strftime('%Y-%m-%d'),
+            'count': entry['count'],
+            'commit': entry['commit']
+        })
+    bitchat_serializable.sort(key=lambda x: x['date'])
+
+    total_serializable = []
+    for entry in total_data:
+        total_serializable.append({
+            'date': entry['date'].strftime('%Y-%m-%d'),
+            'count': entry['count'],
+            'commit': entry['commit']
+        })
+    total_serializable.sort(key=lambda x: x['date'])
+
+    history_payload = {
+        'bitchat': bitchat_serializable,
+        'total': total_serializable
+    }
+    
+    with open(history_json_path, 'w') as f:
+        json.dump(history_payload, f, indent=2)
+    print(f"Exported interactive charts history to {history_json_path}")
+
     # Print summary for log
     if bitchat_stats:
         print(f"Generated BitChat relay chart with {bitchat_stats[0]} data points")
