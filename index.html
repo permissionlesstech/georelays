@@ -724,7 +724,7 @@
 
           <!-- Tab 1.5: 3D Globe View -->
           <div class="tab-content" id="globe-tab">
-            <div id="globe-3d-container" style="width: 100%; height: 100%; position: relative; background-color: var(--bg-darker);"></div>
+            <div id="globe-3d-container" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; background-color: var(--bg-darker);"></div>
           </div>
 
           <!-- Tab 2: Charts View -->
@@ -1033,8 +1033,12 @@
           logSystemMessage("Booting WebGL 3D Globe Engine... Loading targeting mesh.");
           setTimeout(() => {
             init3DGlobe();
+            const container = document.getElementById('globe-3d-container');
+            if (container) {
+              state.globe.width(container.clientWidth).height(container.clientHeight);
+            }
             logSystemMessage("3D Holographic target grid initialized. Auto-rotate ENABLED.");
-          }, 50);
+          }, 100);
         } else {
           // Trigger a resize/refresh in case size of container shifted
           const container = document.getElementById('globe-3d-container');
@@ -1085,8 +1089,8 @@
         .atmosphereAltitude(0.18)
         .showGraticules(true) // latitude/longitude wireframe grid
         
-        // Use an empty globe texture to make it a transparent vector outline ball
-        .globeImageUrl('') 
+        // Load the beautiful dark Earth satellite map texture!
+        .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg') 
         
         // Bind Geolocation coordinates
         .pointsData(state.relays)
@@ -1106,8 +1110,9 @@
           </div>
         `)
         
-        // Clicking points triggers terminal WHOIS report
+        // Clicking points triggers terminal WHOIS report and halts rotation
         .onPointClick(d => {
+          stopGlobeRotation();
           triggerWhois(d);
         });
 
@@ -1118,6 +1123,21 @@
 
       // Adjust camera distance for global viewing
       state.globe.pointOfView({ lat: 20, lng: 0, altitude: 2.2 });
+
+      // Container click listener to resume spinning when clicking on empty space
+      container.addEventListener('mousedown', () => {
+        if (state.globe && !state.globe.controls().autoRotate) {
+          state.globe.controls().autoRotate = true;
+          logSystemMessage("3D Globe auto-rotation RESUMED.");
+        }
+      });
+    }
+
+    function stopGlobeRotation() {
+      if (state.globe && state.globe.controls().autoRotate) {
+        state.globe.controls().autoRotate = false;
+        logSystemMessage("3D Globe auto-rotation PAUSED (Locking target). Click empty space to resume.");
+      }
     }
 
     function updateGlobeColors() {
@@ -1311,6 +1331,7 @@
 
         li.addEventListener('click', () => {
           if (state.currentTab === 'globe-tab' && state.globe) {
+            stopGlobeRotation();
             // Smoothly glide 3D camera in space to target node (altitude 1.2, 1.2s transition)
             state.globe.pointOfView({ lat: r.lat, lng: r.lon, altitude: 1.2 }, 1200);
           } else {
