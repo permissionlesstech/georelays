@@ -1099,6 +1099,7 @@
       state.markers = [];
 
       const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+      const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim();
       const glowColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim();
       
       const showBitChatOnly = document.getElementById('bitchat-filter-checkbox') ? document.getElementById('bitchat-filter-checkbox').checked : true;
@@ -1111,10 +1112,10 @@
         }
 
         const isBC = r.isBitChat === 1;
-        const markerColor = isBC ? primaryColor : '#555555';
-        const markerRadius = isBC ? 5 : 3;
-        const markerOpacity = isBC ? 0.9 : 0.4;
-        const markerFillOpacity = isBC ? 0.8 : 0.3;
+        const markerColor = isBC ? primaryColor : accentColor;
+        const markerRadius = isBC ? 5.5 : 3.5;
+        const markerOpacity = isBC ? 0.95 : 0.65;
+        const markerFillOpacity = isBC ? 0.85 : 0.45;
 
         // Create circle marker
         const marker = L.circleMarker([r.lat, r.lon], {
