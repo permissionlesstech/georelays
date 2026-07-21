@@ -14,7 +14,7 @@ import argparse
 from typing import List, Tuple, Optional, Dict
 
 # Configuration
-DB_URL = "https://raw.githubusercontent.com/sapics/ip-location-db/refs/heads/main/dbip-city/dbip-city-ipv4-num.csv.gz"
+DB_URL = "https://github.com/sapics/ip-location-db/releases/download/latest/dbip-city-ipv4-num.csv.gz"
 DB_FILENAME_GZ = "dbip-city-ipv4-num.csv.gz"
 DB_FILENAME = "dbip-city-ipv4-num.csv"
 
