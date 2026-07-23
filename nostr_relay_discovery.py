@@ -22,7 +22,7 @@ from typing import Set, List, Dict, Optional, Tuple
 from urllib.parse import urlparse
 import websockets
 import websockets.exceptions
-from coincurve import PrivateKey
+from embit import ec
 
 
 # Configure logging
@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 
 # Save progress every N relays processed
 SAVE_POINT = 10
-
 
 @dataclass
 class RelayDiscoveryStats:
@@ -127,10 +126,14 @@ class NostrRelayDiscovery:
         return base64.b64encode(random_bytes).decode()
 
     @staticmethod
-    def _load_private_key(private_key_hex: Optional[str]) -> PrivateKey:
+    def _load_private_key(private_key_hex: Optional[str]) -> ec.PrivateKey:
         """Load a configured Nostr secret or generate an ephemeral discovery key."""
         if private_key_hex is None:
-            return PrivateKey()
+            while True:
+                try:
+                    return ec.PrivateKey(secrets.token_bytes(32))
+                except ValueError:
+                    continue
 
         try:
             secret = bytes.fromhex(private_key_hex)
@@ -141,13 +144,15 @@ class NostrRelayDiscovery:
             raise ValueError("--private-key must be 64 hexadecimal characters")
 
         try:
-            return PrivateKey(secret)
+            return ec.PrivateKey(secret)
         except ValueError as exc:
-            raise ValueError("--private-key is not a valid secp256k1 secret") from exc
+            raise ValueError(
+                "--private-key is not a valid secp256k1 secret"
+            ) from exc
 
     def build_auth_event(self, relay_url: str, challenge: str) -> Dict:
         """Build and sign a NIP-42 kind 22242 authentication event."""
-        pubkey = self.private_key.public_key.format(compressed=True)[1:].hex()
+        pubkey = self.private_key.xonly().hex()
         event = {
             "pubkey": pubkey,
             "created_at": int(time.time()),
@@ -172,7 +177,11 @@ class NostrRelayDiscovery:
         ).encode()
         event_id = hashlib.sha256(serialized).digest()
         event["id"] = event_id.hex()
-        event["sig"] = self.private_key.sign_schnorr(event_id).hex()
+        signature = self.private_key.schnorr_sign(event_id)
+        public_key = ec.PublicKey.from_xonly(bytes.fromhex(pubkey))
+        if not public_key.schnorr_verify(signature, event_id):
+            raise RuntimeError("generated an invalid BIP-340 signature")
+        event["sig"] = signature.serialize().hex()
         return event
 
     async def receive_with_auth(

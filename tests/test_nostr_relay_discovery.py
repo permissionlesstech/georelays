@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from coincurve import PublicKeyXOnly
+from embit import ec
 
 from nostr_relay_discovery import NostrRelayDiscovery
 
@@ -50,8 +50,8 @@ class Nip42Tests(unittest.TestCase):
 
         self.assertEqual(event["id"], event_id.hex())
         self.assertTrue(
-            PublicKeyXOnly(bytes.fromhex(event["pubkey"])).verify(
-                bytes.fromhex(event["sig"]), event_id
+            ec.PublicKey.from_xonly(bytes.fromhex(event["pubkey"])).schnorr_verify(
+                ec.SchnorrSig.parse(bytes.fromhex(event["sig"])), event_id
             )
         )
 
