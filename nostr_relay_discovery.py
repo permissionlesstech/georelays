@@ -7,8 +7,10 @@ follow lists (kind 3 events) and analyzing relay tags to build a network map.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
+import os
 import re
 import time
 import argparse
@@ -20,6 +22,7 @@ from typing import Set, List, Dict, Optional, Tuple
 from urllib.parse import urlparse
 import websockets
 import websockets.exceptions
+from coincurve import PrivateKey
 
 
 # Configure logging
@@ -60,13 +63,14 @@ class RelayDiscoveryStats:
 class NostrRelayDiscovery:
     """Nostr relay discovery tool using breadth-first search through follow lists"""
     
-    def __init__(self, initial_relay: str, max_depth: int = 3, connection_timeout: int = 5, output_file: str = "relay_discovery_results.json", save_point: int = SAVE_POINT, batch_size: int = 10):
+    def __init__(self, initial_relay: str, max_depth: int = 3, connection_timeout: int = 5, output_file: str = "relay_discovery_results.json", save_point: int = SAVE_POINT, batch_size: int = 10, private_key: Optional[str] = None):
         self.initial_relay = initial_relay
         self.max_depth = max_depth
         self.connection_timeout = connection_timeout
         self.output_file = output_file
         self.save_point = save_point
         self.batch_size = batch_size
+        self.private_key = self._load_private_key(private_key)
         
         # Discovery state
         self.to_visit: deque = deque()  # (relay_url, depth) - will be populated by load_existing_results
@@ -121,6 +125,119 @@ class NostrRelayDiscovery:
         """Generate a random subscription ID using 16 random bytes encoded as base64"""
         random_bytes = secrets.token_bytes(16)
         return base64.b64encode(random_bytes).decode()
+
+    @staticmethod
+    def _load_private_key(private_key_hex: Optional[str]) -> PrivateKey:
+        """Load a configured Nostr secret or generate an ephemeral discovery key."""
+        if private_key_hex is None:
+            return PrivateKey()
+
+        try:
+            secret = bytes.fromhex(private_key_hex)
+        except ValueError as exc:
+            raise ValueError("--private-key must be 64 hexadecimal characters") from exc
+
+        if len(secret) != 32:
+            raise ValueError("--private-key must be 64 hexadecimal characters")
+
+        try:
+            return PrivateKey(secret)
+        except ValueError as exc:
+            raise ValueError("--private-key is not a valid secp256k1 secret") from exc
+
+    def build_auth_event(self, relay_url: str, challenge: str) -> Dict:
+        """Build and sign a NIP-42 kind 22242 authentication event."""
+        pubkey = self.private_key.public_key.format(compressed=True)[1:].hex()
+        event = {
+            "pubkey": pubkey,
+            "created_at": int(time.time()),
+            "kind": 22242,
+            "tags": [
+                ["relay", relay_url],
+                ["challenge", challenge],
+            ],
+            "content": "",
+        }
+        serialized = json.dumps(
+            [
+                0,
+                event["pubkey"],
+                event["created_at"],
+                event["kind"],
+                event["tags"],
+                event["content"],
+            ],
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode()
+        event_id = hashlib.sha256(serialized).digest()
+        event["id"] = event_id.hex()
+        event["sig"] = self.private_key.sign_schnorr(event_id).hex()
+        return event
+
+    async def receive_with_auth(
+        self, websocket, relay_url: str, timeout: float, request_message=None
+    ):
+        """Receive one application message, completing NIP-42 if challenged.
+
+        Some relays reject the request that triggered authentication before
+        processing the AUTH response. When ``request_message`` is supplied, it
+        is sent again after authentication succeeds.
+        """
+        deadline = asyncio.get_running_loop().time() + timeout
+
+        while True:
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise asyncio.TimeoutError
+
+            response = await asyncio.wait_for(websocket.recv(), timeout=remaining)
+            data = json.loads(response)
+
+            if not isinstance(data, list) or not data:
+                return data
+
+            if data[0] != "AUTH":
+                return data
+
+            if len(data) < 2 or not isinstance(data[1], str):
+                raise ValueError("relay sent a malformed NIP-42 AUTH challenge")
+
+            auth_event = self.build_auth_event(relay_url, data[1])
+            await websocket.send(json.dumps(["AUTH", auth_event]))
+            logger.debug(f"Sent NIP-42 AUTH response to {relay_url}")
+
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise asyncio.TimeoutError
+            while True:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError
+                auth_response = json.loads(
+                    await asyncio.wait_for(websocket.recv(), timeout=remaining)
+                )
+                if (
+                    isinstance(auth_response, list)
+                    and len(auth_response) >= 3
+                    and auth_response[0] == "OK"
+                    and auth_response[1] == auth_event["id"]
+                ):
+                    if auth_response[2] is not True:
+                        reason = (
+                            auth_response[3]
+                            if len(auth_response) > 3
+                            else "authentication rejected"
+                        )
+                        raise PermissionError(
+                            f"NIP-42 authentication failed: {reason}"
+                        )
+                    break
+
+            logger.debug(f"NIP-42 authentication succeeded with {relay_url}")
+            if request_message is not None:
+                await websocket.send(json.dumps(request_message))
+                logger.debug(f"Resent request after NIP-42 authentication: {relay_url}")
     
     async def test_relay_connection(self, relay_url: str) -> bool:
         """Test if a relay is functioning by attempting to connect and validate Nostr protocol responses"""
@@ -146,12 +263,12 @@ class NostrRelayDiscovery:
                 
                 # Wait for a response and validate it's a proper Nostr protocol message
                 try:
-                    response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
-                    logger.debug(f"Received response: {response[:200]}...")  # Log first 200 chars
+                    data = await self.receive_with_auth(
+                        websocket, relay_url, 5.0, req_msg
+                    )
+                    logger.debug(f"Received response: {str(data)[:200]}...")
                     
                     try:
-                        data = json.loads(response)
-                        
                         # Check if it's a valid Nostr protocol message
                         if not isinstance(data, list) or len(data) < 2:
                             logger.debug(f"Invalid Nostr message format from {relay_url}: not a list or too short")
@@ -186,7 +303,7 @@ class NostrRelayDiscovery:
                             logger.debug(f"Unexpected message type from {relay_url}: {message_type}")
                             return False
                             
-                    except json.JSONDecodeError as e:
+                    except (json.JSONDecodeError, ValueError) as e:
                         logger.debug(f"Invalid JSON response from {relay_url}: {e}")
                         return False
                         
@@ -261,8 +378,9 @@ class NostrRelayDiscovery:
                 
                 while time.time() - start_time < timeout_duration:
                     try:
-                        message = await asyncio.wait_for(websocket.recv(), timeout=5.0)
-                        data = json.loads(message)
+                        data = await self.receive_with_auth(
+                            websocket, relay_url, 5.0, req_msg
+                        )
                         
                         if data[0] == "EVENT" and data[1] == subscription_id:
                             event = data[2]
@@ -544,6 +662,14 @@ async def main():
         help="Number of relays to process concurrently (default: 10)"
     )
     parser.add_argument(
+        "--private-key",
+        default=os.environ.get("NOSTR_PRIVATE_KEY"),
+        help=(
+            "64-character hex Nostr private key for NIP-42 authentication "
+            "(default: NOSTR_PRIVATE_KEY or an ephemeral key)"
+        ),
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose logging"
@@ -559,9 +685,10 @@ async def main():
         args.initial_relay, 
         args.max_depth, 
         args.timeout, 
-        args.output, 
+        args.output,
         args.save_point,
-        args.batch_size
+        args.batch_size,
+        args.private_key,
     )
     if not discovery.is_valid_relay_url(args.initial_relay):
         print(f"Error: Invalid relay URL: {args.initial_relay}")
