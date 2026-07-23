@@ -4,7 +4,9 @@ import json
 import unittest
 from unittest.mock import patch
 
-from nostr_relay_discovery import NostrRelayDiscovery, _schnorr_verify
+from embit import ec
+
+from nostr_relay_discovery import NostrRelayDiscovery
 
 
 class FakeWebSocket:
@@ -48,10 +50,8 @@ class Nip42Tests(unittest.TestCase):
 
         self.assertEqual(event["id"], event_id.hex())
         self.assertTrue(
-            _schnorr_verify(
-                event_id,
-                bytes.fromhex(event["pubkey"]),
-                bytes.fromhex(event["sig"]),
+            ec.PublicKey.from_xonly(bytes.fromhex(event["pubkey"])).schnorr_verify(
+                ec.SchnorrSig.parse(bytes.fromhex(event["sig"])), event_id
             )
         )
 

@@ -22,6 +22,7 @@ from typing import Set, List, Dict, Optional, Tuple
 from urllib.parse import urlparse
 import websockets
 import websockets.exceptions
+from embit import ec
 
 
 # Configure logging
@@ -33,135 +34,6 @@ logger = logging.getLogger(__name__)
 
 # Save progress every N relays processed
 SAVE_POINT = 10
-
-# secp256k1 parameters used by Nostr's BIP-340 Schnorr signatures.
-SECP256K1_FIELD = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
-SECP256K1_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-SECP256K1_GENERATOR = (
-    0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
-    0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8,
-)
-
-
-def _tagged_hash(tag: str, message: bytes) -> bytes:
-    tag_hash = hashlib.sha256(tag.encode()).digest()
-    return hashlib.sha256(tag_hash + tag_hash + message).digest()
-
-
-def _point_add(left, right):
-    if left is None:
-        return right
-    if right is None:
-        return left
-
-    x1, y1 = left
-    x2, y2 = right
-    if x1 == x2 and y1 != y2:
-        return None
-    if left == right:
-        slope = (3 * x1 * x1) * pow(2 * y1, -1, SECP256K1_FIELD)
-    else:
-        slope = (y2 - y1) * pow(x2 - x1, -1, SECP256K1_FIELD)
-    slope %= SECP256K1_FIELD
-    x3 = (slope * slope - x1 - x2) % SECP256K1_FIELD
-    y3 = (slope * (x1 - x3) - y1) % SECP256K1_FIELD
-    return x3, y3
-
-
-def _point_multiply(scalar: int, point=SECP256K1_GENERATOR):
-    result = None
-    addend = point
-    while scalar:
-        if scalar & 1:
-            result = _point_add(result, addend)
-        addend = _point_add(addend, addend)
-        scalar >>= 1
-    return result
-
-
-def _schnorr_sign(message: bytes, secret: int) -> bytes:
-    """Create a BIP-340 Schnorr signature for a 32-byte message."""
-    if len(message) != 32 or not 1 <= secret < SECP256K1_ORDER:
-        raise ValueError("invalid BIP-340 signing input")
-
-    public_point = _point_multiply(secret)
-    public_x, public_y = public_point
-    normalized_secret = secret if public_y % 2 == 0 else SECP256K1_ORDER - secret
-    secret_bytes = normalized_secret.to_bytes(32, "big")
-    auxiliary = secrets.token_bytes(32)
-    masked_secret = bytes(
-        left ^ right
-        for left, right in zip(
-            secret_bytes, _tagged_hash("BIP0340/aux", auxiliary)
-        )
-    )
-    nonce_hash = _tagged_hash(
-        "BIP0340/nonce",
-        masked_secret + public_x.to_bytes(32, "big") + message,
-    )
-    nonce = int.from_bytes(nonce_hash, "big") % SECP256K1_ORDER
-    if nonce == 0:
-        raise RuntimeError("BIP-340 nonce generation failed")
-
-    nonce_point = _point_multiply(nonce)
-    nonce_x, nonce_y = nonce_point
-    normalized_nonce = nonce if nonce_y % 2 == 0 else SECP256K1_ORDER - nonce
-    challenge = int.from_bytes(
-        _tagged_hash(
-            "BIP0340/challenge",
-            nonce_x.to_bytes(32, "big")
-            + public_x.to_bytes(32, "big")
-            + message,
-        ),
-        "big",
-    ) % SECP256K1_ORDER
-    response = (
-        normalized_nonce + challenge * normalized_secret
-    ) % SECP256K1_ORDER
-    return nonce_x.to_bytes(32, "big") + response.to_bytes(32, "big")
-
-
-def _schnorr_verify(message: bytes, public_x_bytes: bytes, signature: bytes) -> bool:
-    """Verify a BIP-340 signature. Kept small for tests and signer self-checks."""
-    if len(message) != 32 or len(public_x_bytes) != 32 or len(signature) != 64:
-        return False
-
-    public_x = int.from_bytes(public_x_bytes, "big")
-    nonce_x = int.from_bytes(signature[:32], "big")
-    response = int.from_bytes(signature[32:], "big")
-    if (
-        public_x >= SECP256K1_FIELD
-        or nonce_x >= SECP256K1_FIELD
-        or response >= SECP256K1_ORDER
-    ):
-        return False
-
-    public_y_squared = (pow(public_x, 3, SECP256K1_FIELD) + 7) % SECP256K1_FIELD
-    public_y = pow(
-        public_y_squared, (SECP256K1_FIELD + 1) // 4, SECP256K1_FIELD
-    )
-    if pow(public_y, 2, SECP256K1_FIELD) != public_y_squared:
-        return False
-    if public_y % 2:
-        public_y = SECP256K1_FIELD - public_y
-    public_point = (public_x, public_y)
-
-    challenge = int.from_bytes(
-        _tagged_hash(
-            "BIP0340/challenge", signature[:32] + public_x_bytes + message
-        ),
-        "big",
-    ) % SECP256K1_ORDER
-    nonce_point = _point_add(
-        _point_multiply(response),
-        _point_multiply(SECP256K1_ORDER - challenge, public_point),
-    )
-    return (
-        nonce_point is not None
-        and nonce_point[1] % 2 == 0
-        and nonce_point[0] == nonce_x
-    )
-
 
 @dataclass
 class RelayDiscoveryStats:
@@ -254,10 +126,14 @@ class NostrRelayDiscovery:
         return base64.b64encode(random_bytes).decode()
 
     @staticmethod
-    def _load_private_key(private_key_hex: Optional[str]) -> int:
+    def _load_private_key(private_key_hex: Optional[str]) -> ec.PrivateKey:
         """Load a configured Nostr secret or generate an ephemeral discovery key."""
         if private_key_hex is None:
-            return secrets.randbelow(SECP256K1_ORDER - 1) + 1
+            while True:
+                try:
+                    return ec.PrivateKey(secrets.token_bytes(32))
+                except ValueError:
+                    continue
 
         try:
             secret = bytes.fromhex(private_key_hex)
@@ -267,15 +143,16 @@ class NostrRelayDiscovery:
         if len(secret) != 32:
             raise ValueError("--private-key must be 64 hexadecimal characters")
 
-        secret_scalar = int.from_bytes(secret, "big")
-        if not 1 <= secret_scalar < SECP256K1_ORDER:
-            raise ValueError("--private-key is not a valid secp256k1 secret")
-        return secret_scalar
+        try:
+            return ec.PrivateKey(secret)
+        except ValueError as exc:
+            raise ValueError(
+                "--private-key is not a valid secp256k1 secret"
+            ) from exc
 
     def build_auth_event(self, relay_url: str, challenge: str) -> Dict:
         """Build and sign a NIP-42 kind 22242 authentication event."""
-        public_point = _point_multiply(self.private_key)
-        pubkey = public_point[0].to_bytes(32, "big").hex()
+        pubkey = self.private_key.xonly().hex()
         event = {
             "pubkey": pubkey,
             "created_at": int(time.time()),
@@ -300,10 +177,11 @@ class NostrRelayDiscovery:
         ).encode()
         event_id = hashlib.sha256(serialized).digest()
         event["id"] = event_id.hex()
-        signature = _schnorr_sign(event_id, self.private_key)
-        if not _schnorr_verify(event_id, bytes.fromhex(pubkey), signature):
+        signature = self.private_key.schnorr_sign(event_id)
+        public_key = ec.PublicKey.from_xonly(bytes.fromhex(pubkey))
+        if not public_key.schnorr_verify(signature, event_id):
             raise RuntimeError("generated an invalid BIP-340 signature")
-        event["sig"] = signature.hex()
+        event["sig"] = signature.serialize().hex()
         return event
 
     async def receive_with_auth(
