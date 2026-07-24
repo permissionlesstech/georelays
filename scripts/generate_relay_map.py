@@ -198,55 +198,35 @@ def main():
     
     # Ensure the assets directory exists
     os.makedirs('assets', exist_ok=True)
-    
-    try:
-        # Read the relay data
-        df = pd.read_csv('nostr_relays.csv')
-        
-        # Filter out rows with missing or invalid coordinates
-        df = df.dropna(subset=['Latitude', 'Longitude'])
-        
-        # Filter out invalid coordinates
-        df = df[(df['Latitude'] >= -90) & (df['Latitude'] <= 90) & 
-                (df['Longitude'] >= -180) & (df['Longitude'] <= 180)]
-        
-        # Generate maps
-        # 1. Interactive HTML map
-        relay_count_interactive = create_interactive_map(
-            df,
-            'assets/relay_locations_interactive.html'
-        )
-        
-        # 2. Static PNG map
-        try:
-            relay_count_static = create_static_map(
-                df,
-                'assets/relay_locations_static.png'
-            )
-        except Exception as e:
-            print(f"Error creating static map: {e}")
-            relay_count_static = 0
-        
-        # 3. Heatmap
-        try:
-            from scipy.ndimage import gaussian_filter
-            relay_count_heatmap = create_heatmap(
-                df,
-                'assets/relay_locations_heatmap.png'
-            )
-        except ImportError:
-            print("Could not create heatmap: scipy not installed")
-            relay_count_heatmap = 0
-            
-        # Print summary
-        print(f"Generated interactive map with {relay_count_interactive} relays")
-        if relay_count_static > 0:
-            print(f"Generated static map with {relay_count_static} relays")
-        if relay_count_heatmap > 0:
-            print(f"Generated heatmap with {relay_count_heatmap} relays")
-            
-    except Exception as e:
-        print(f"Error generating relay maps: {e}")
+
+    # Read the relay data
+    df = pd.read_csv('nostr_relays.csv')
+
+    # Filter out rows with missing or invalid coordinates
+    df = df.dropna(subset=['Latitude', 'Longitude'])
+
+    # Filter out invalid coordinates
+    df = df[(df['Latitude'] >= -90) & (df['Latitude'] <= 90) &
+            (df['Longitude'] >= -180) & (df['Longitude'] <= 180)]
+
+    # Generate maps. Any failure must propagate so CI cannot commit a partial
+    # update while reporting a successful workflow.
+    relay_count_interactive = create_interactive_map(
+        df,
+        'assets/relay_locations_interactive.html'
+    )
+    relay_count_static = create_static_map(
+        df,
+        'assets/relay_locations_static.png'
+    )
+    relay_count_heatmap = create_heatmap(
+        df,
+        'assets/relay_locations_heatmap.png'
+    )
+
+    print(f"Generated interactive map with {relay_count_interactive} relays")
+    print(f"Generated static map with {relay_count_static} relays")
+    print(f"Generated heatmap with {relay_count_heatmap} relays")
 
 if __name__ == "__main__":
     main()
