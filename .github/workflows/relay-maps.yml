@@ -31,11 +31,13 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install matplotlib pandas numpy folium scipy
+        # Matplotlib 3.11 raises a LinearRing error with Cartopy 0.25.0.
+        # Keep this at the last version known to render all three maps.
+        pip install matplotlib==3.10.9 pandas numpy folium scipy
         # Install cartopy and its dependencies
         sudo apt-get update
         sudo apt-get install -y libproj-dev proj-bin proj-data libgeos-dev
-        pip install cartopy
+        pip install cartopy==0.25.0
     
     - name: Generate relay maps
       run: |
