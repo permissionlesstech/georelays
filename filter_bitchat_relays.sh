@@ -3,6 +3,16 @@
 # How many relays to query in parallel
 CONCURRENCY=${CONCURRENCY:-10}
 
+# Use the caller's identity when configured; otherwise avoid nak's built-in
+# default signer by generating one ephemeral identity for this filter run.
+if [[ -z "${NOSTR_SECRET_KEY:-}" ]]; then
+    if ! NOSTR_SECRET_KEY=$(nak key generate); then
+        echo "Failed to generate an ephemeral Nostr signing key" >&2
+        exit 1
+    fi
+fi
+export NOSTR_SECRET_KEY
+
 # Read relays from stdin or file into array
 mapfile -t relays
 
@@ -14,7 +24,7 @@ test_relay() {
     
     # Test 1: Try to request kind 20000 events and count them
     # Use timeout to avoid hanging on unresponsive relays
-    count=$(timeout 10s nak req -k 20000 "$relay" 2>/dev/null | jq -s 'length' 2>/dev/null)
+    count=$(timeout 10s nak req --auth -k 20000 "$relay" 2>/dev/null | jq -s 'length' 2>/dev/null)
     
     # Check if we got a valid response (number >= 0) for reading
     if [[ ! "$count" =~ ^[0-9]+$ ]]; then
@@ -26,7 +36,7 @@ test_relay() {
     local test_content="test_$(date +%s)_$$"
     
     # Try to post a test kind 20000 event
-    post_result=$(timeout 10s nak event -k 20000 --tag n=test --tag g=test --content "$test_content" "$relay" 2>&1)
+    post_result=$(timeout 10s nak event --auth -k 20000 --tag n=test --tag g=test --content "$test_content" "$relay" 2>&1)
     
     # Check if the post was successful
     if echo "$post_result" | grep -q "success"; then

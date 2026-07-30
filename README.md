@@ -54,8 +54,10 @@ jq -r '.functioning_relays[]' relay_discovery_results.json \
   | python3 relays_geo_lookup.py nostr_relays.csv
 ```
 
-The filter performs both a read and a test write. Make sure `nak` has a signing
-key configured before running it.
+The filter performs both a read and a test write, responding to NIP-42
+authentication challenges when required. It generates an ephemeral signing key
+by default. To test membership-restricted relays, provide an authorized key via
+`NOSTR_SECRET_KEY`.
 
 ## How discovery works
 
